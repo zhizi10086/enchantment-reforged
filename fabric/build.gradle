@@ -1,0 +1,77 @@
+plugins {
+    id 'fabric-loom' version '1.7.4'
+    id 'maven-publish'
+}
+
+version = project.mod_version
+group = project.maven_group
+
+base {
+    archivesName = project.archives_base_name
+}
+
+repositories {
+    mavenCentral()
+    // Mod Menu 所在的仓库
+    maven {
+        name = 'TerraformersMC'
+        url = 'https://maven.terraformersmc.com/releases/'
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+
+    // MixinExtras 的 @WrapOperation/@ModifyReturnValue 让注入与其它模组可叠加（不像 @Redirect 那样互斥）。
+    // Fabric Loader 0.18.4 已内置 mixinextras-fabric-0.5.0（位于 loader jar 的 META-INF/jars），
+    // 因此这里只做编译期依赖，不 include，避免生产包里出现重复副本。
+    compileOnly "io.github.llamalad7:mixinextras-fabric:0.5.0"
+
+    // Mod Menu：只在编译期依赖，运行期完全可选（没装 Mod Menu 时模组照常工作，只是没有图形配置页）
+    modCompileOnly "com.terraformersmc:modmenu:${project.modmenu_version}"
+
+    // 矛模组 Backported Spears：**只在编译期**用于让 Mixin 注解处理器能校验兼容 Mixin 的目标类
+    // （生产 jar 是 intermediary 名，必须用 modCompileOnly 让 Loom 重映射成 yarn 名才能解析继承链）。
+    // 该模组是 CC0 许可，jar 放在 libs/ 便于复现构建；运行期完全可选（没装矛模组时兼容代码不生效）。
+    modCompileOnly files('libs/spear-backport-fabric-1.4.7-1.20.1.jar')
+}
+
+processResources {
+    inputs.property 'version', project.version
+
+    filesMatching('fabric.mod.json') {
+        expand 'version': project.version
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    // 本机只装了 JDK 21，因此用 JDK 21 编译、产物字节码锁定 Java 17（Minecraft 1.20.1 的运行目标）
+    it.options.release = 17
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+    withSourcesJar()
+}
+
+jar {
+    from('LICENSE') {
+        rename { "${it}_${project.base.archivesName.get()}" }
+    }
+}
+
+// 构建结束后把 remap 后的 jar 复制到固定的发布目录（项目外的 ../JAR/enchantment-reforged）
+tasks.named('build') {
+    doLast {
+        def releaseDir = file('../JAR/enchantment-reforged')
+        releaseDir.mkdirs()
+        copy {
+            from tasks.named('remapJar').get().archiveFile
+            into releaseDir
+        }
+    }
+}

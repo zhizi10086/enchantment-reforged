@@ -1,0 +1,38 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.enchantmentreforged.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "mixins": [
+    "AnvilScreenHandlerMixin",
+    "ArrowEntityMixin",
+    "BlockMixin",
+    "BowItemMixin",
+    "CrossbowItemMixin",
+    "EnchantmentMixin",
+    "ExperienceOrbEntityMixin",
+    "HungerManagerMixin",
+    "InfinityEnchantmentMixin",
+    "ItemStackMixin",
+    "LivingEntityMixin",
+    "MobEntityMixin",
+    "PersistentProjectileEntityMixin",
+    "PlayerEntityMixin",
+    "ProtectionEnchantmentMixin",
+    "ServerPlayerEntityMixin",
+    "TridentItemMixin",
+    "TridentEntityMixin"
+  ],
+  "client": [
+    "AnvilScreenMixin",
+    "ArrowParticleClientMixin",
+    "ArrowEntityParticleClientMixin",
+    "ClientPlayerEntityMixin",
+    "HeldItemRendererMixin",
+    "InGameHudMixin",
+    "SpectralArrowEntityParticleClientMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

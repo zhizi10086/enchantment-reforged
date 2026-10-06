@@ -1,0 +1,29 @@
+{
+  "__comment": [
+    "示例：用 enchant_with_levels 按等级区间生成附魔，并在函数里做筛选。",
+    "注意：自定义锋利沿用原版锋利的代价曲线，等级越高需要的 power 越大，",
+    "所以 powers 的区间需要给得比较宽（例如 20~40）才能看到 4~5 级。"
+  ],
+  "type": "minecraft:chest",
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:iron_sword",
+          "functions": [
+            {
+              "function": "minecraft:enchant_with_levels",
+              "options": "#minecraft:on_random_loot",
+              "levels": {
+                "min": 20,
+                "max": 40
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "com.enchantmentreforged.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "refmap": "enchantment-reforged-refmap.json",
+  "plugin": "com.enchantmentreforged.compat.SpearMixinPlugin",
+  "mixins": [
+    "SpearItemCompatMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

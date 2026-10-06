@@ -1,0 +1,13 @@
+{
+  "__comment": [
+    "标签写法参考。重要：1.20.1 没有任何『附魔标签』，",
+    "标签既不能修改附魔上限，也不能定义附魔互斥，",
+    "本文件只是给你写物品标签时抄语法用（例如配方、进度、战利品条件）。"
+  ],
+  "replace": false,
+  "values": [
+    "minecraft:netherite_sword",
+    "minecraft:diamond_sword",
+    "minecraft:iron_sword"
+  ]
+}

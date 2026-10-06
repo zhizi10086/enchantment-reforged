@@ -1,0 +1,27 @@
+modLoader = "javafml"
+loaderVersion = "[47,)"
+license = "MIT"
+displayURL = "https://www.mcmod.cn/class/23213.html"
+
+[[mods]]
+modId = "enchantment_reforged"
+version = "${version}"
+displayName = "Enchantment Reforged"
+authors = "Summy"
+description = '''
+重做锋利与力量、铁砧改消耗经验点数，新增 26 个附魔；兼容矛 Backported Spears 1.4.7 并修复其伤害翻倍（百科链接见链接区）。
+'''
+
+[[dependencies.enchantment_reforged]]
+    modId = "forge"
+    mandatory = true
+    versionRange = "[47,)"
+    ordering = "NONE"
+    side = "BOTH"
+
+[[dependencies.enchantment_reforged]]
+    modId = "minecraft"
+    mandatory = true
+    versionRange = "[1.20.1,1.20.2)"
+    ordering = "NONE"
+    side = "BOTH"

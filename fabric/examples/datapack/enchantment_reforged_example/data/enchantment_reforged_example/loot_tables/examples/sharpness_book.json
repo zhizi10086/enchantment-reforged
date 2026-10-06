@@ -1,0 +1,28 @@
+{
+  "__comment": [
+    "示例：生成一本只可能是『自定义锋利』的附魔书。",
+    "enchant_randomly 的 enchantments 字段是显式白名单，写了它就只从列表里挑。",
+    "不写 enchantments 时，原版会从全部 isAvailableForRandomSelection() 为 true 的附魔里随机挑——",
+    "本模组默认让原版锋利返回 false，所以随机战利品里不会再出现原版锋利。"
+  ],
+  "type": "minecraft:chest",
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:book",
+          "functions": [
+            {
+              "function": "minecraft:enchant_randomly",
+              "enchantments": [
+                "enchantment_reforged:sharpness_plus"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

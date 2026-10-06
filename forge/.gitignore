@@ -1,0 +1,14 @@
+# Gradle
+.gradle/
+build/
+out/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+bin/
+*.class
+
+# 本地运行目录
+run/
