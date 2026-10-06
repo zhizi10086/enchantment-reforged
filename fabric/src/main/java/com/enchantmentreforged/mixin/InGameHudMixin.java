@@ -6,12 +6,14 @@ import net.fabricmc.api.Environment;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.hud.InGameHud;
+import net.minecraft.client.network.ClientPlayerInteractionManager;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.entity.player.HungerManager;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.registry.tag.FluidTags;
 import net.minecraft.util.Identifier;
+import net.minecraft.world.GameMode;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -30,6 +32,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  *
  * <p>位置取"饥饿条上一行"（右半边，不会和左半边的盔甲行冲突）；如果原版此时会画水泡行，
  * 就再让开一行，避免互相压住。骑乘生物（原版不画饥饿条）或额外饥饿值为 0 时不画。
+ *
+ * <p>创造 / 旁观模式不画：这两种模式下饥饿值不会消耗，"多出来的饥饿"没有意义。
+ * 判定用客户端权威的 {@code ClientPlayerInteractionManager#getCurrentGameMode()}，
+ * 不能用 {@code player.isCreative()}——客户端玩家上的那个方法并不可靠。
  */
 @Environment(EnvType.CLIENT)
 @Mixin(InGameHud.class)
@@ -44,7 +50,8 @@ public abstract class InGameHudMixin {
 	private void enchantmentReforged$renderExtraHungerRow(DrawContext context, CallbackInfo ci) {
 		MinecraftClient client = MinecraftClient.getInstance();
 		PlayerEntity player = client.player;
-		if (player == null || enchantmentReforged$ridesLivingMount(player)) {
+		if (player == null || enchantmentReforged$hiddenGameMode(client)
+				|| enchantmentReforged$ridesLivingMount(player)) {
 			return;
 		}
 		HungerManager hunger = player.getHungerManager();
@@ -84,6 +91,16 @@ public abstract class InGameHudMixin {
 				context.drawTexture(APPLESKIN_ICONS, x, rowY, u, 0, 9, 9);
 			}
 		}
+	}
+
+	/** 创造 / 旁观模式不显示这一行（用客户端权威的游戏模式判定） */
+	private static boolean enchantmentReforged$hiddenGameMode(MinecraftClient client) {
+		ClientPlayerInteractionManager interactionManager = client.interactionManager;
+		if (interactionManager == null) {
+			return false;
+		}
+		GameMode mode = interactionManager.getCurrentGameMode();
+		return mode == GameMode.CREATIVE || mode == GameMode.SPECTATOR;
 	}
 
 	/** 原版"骑乘生物时不画饥饿条"的同款判定（骑船、矿车等不影响） */

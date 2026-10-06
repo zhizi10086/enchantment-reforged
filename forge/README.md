@@ -75,6 +75,19 @@ dev 冒烟之所以"通过"、生产才炸，有两层原因，值得记下来�
 判定用客户端权威的 `MultiPlayerGameMode#getPlayerMode()`，而不是 `player.isCreative()`——
 客户端玩家上的后者并不可靠（`AbstractClientPlayer` 的实现与实际游戏模式脱钩）。
 
+与「经典状态条」（Classic Bar，mod id `classicbar`）的兼容也一并做了。那个模组会把原版的
+饥饿/空气等 overlay 取消隐藏（它的 `disableOtherOverlays` 只取消自己名单里的原版 overlay），
+改成自己画的条形，并借用 Forge 的堆叠偏移：每条绘制在 `y = screenHeight - ForgeGui.rightHeight`，
+画完再把该偏移加上去。所以：
+
+- 检测到 `classicbar` 时，第二行改用同一份偏移定位（`screenHeight - rightHeight - 10`），
+  跟在它的状态条正上方；
+- 没装 Classic Bar 时行为不变（原版饥饿条上一行，遇气泡再让开一行）；
+- overlay 的注册锚点从 `AIR_LEVEL` 改为 `ITEM_NAME` 之上——Classic Bar 是注册在 `ITEM_NAME` 之下的，
+  这样能确保我们读取偏移时它已经完成累加（否则读到的永远是 0）。
+
+自检日志里也带上了 `classicBar=` 与 `rowY=`，方便区分"位置没对上"和"根本没画"。
+
 本次改动后客户端 mixin 由 7 个降为 6 个，服务端行为完全不变。
 
 移植时踩到、并已修正的坑（供后续版本参考）：
