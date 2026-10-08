@@ -19,6 +19,7 @@ import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.player.ItemTooltipEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.fml.ModLoadingContext;
+import net.minecraftforge.fml.ModList;
 
 import java.util.List;
 
@@ -36,6 +37,8 @@ public final class EnchantmentReforgedClient {
 	private static boolean serverSupportsLongDistanceParticles;
 	/** 联机时是否正在使用服务端下发的配置（断线后恢复本地文件） */
 	private static boolean usingServerConfig;
+	/** 是否装了 Enchantment Descriptions（装了就把附魔简介让给它渲染，避免重复） */
+	private static Boolean enchDescLoaded;
 
 	private EnchantmentReforgedClient() {
 	}
@@ -65,6 +68,20 @@ public final class EnchantmentReforgedClient {
 		event.registerAbove(VanillaGuiOverlay.ITEM_NAME.id(), ExtraHungerOverlay.ID, ExtraHungerOverlay.INSTANCE);
 	}
 
+	/**
+	 * 是否装了 Enchantment Descriptions（mod id: enchdesc）。
+	 *
+	 * <p>它会在每个附魔的名字行后面无条件插入 {@code <附魔ID>.desc} 的描述，
+	 * 而我们的附魔现在也提供了这个键（一句话简介），所以装了它时就把简介让给它渲染，
+	 * 我们自己的数值明细改为"按住 Shift 展开"，避免同一个附魔出现两行描述。
+	 */
+	private static boolean enchantmentReforged$enchDescLoaded() {
+		if (enchDescLoaded == null) {
+			enchDescLoaded = ModList.get().isLoaded("enchdesc");
+		}
+		return enchDescLoaded;
+	}
+
 	private static void onItemTooltip(ItemTooltipEvent event) {
 		ItemStack stack = event.getItemStack();
 		List<Component> lines = event.getToolTip();
@@ -72,9 +89,17 @@ public final class EnchantmentReforgedClient {
 			// 附魔书：追加本模组附魔的说明（数值跟着配置走）
 			List<Component> description = EnchantmentDescriptions.describe(stack);
 			if (!description.isEmpty()) {
-				lines.add(Component.empty());
-				for (Component line : description) {
-					lines.add(line.copy().withStyle(ChatFormatting.GRAY));
+				if (!enchantmentReforged$enchDescLoaded()
+						|| net.minecraft.client.gui.screens.Screen.hasShiftDown()) {
+					lines.add(Component.empty());
+					for (Component line : description) {
+						lines.add(line.copy().withStyle(ChatFormatting.GRAY));
+					}
+				} else {
+					// 装了 Enchantment Descriptions：简介由它用 <附魔ID>.desc 渲染，
+					// 我们这边只提示"可以按 Shift 看数值明细"，避免同一个附魔出现两行描述
+					lines.add(Component.translatable("tooltip.enchantment_reforged.desc.hint_shift")
+							.withStyle(ChatFormatting.DARK_GRAY));
 				}
 			}
 			return;

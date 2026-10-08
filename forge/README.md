@@ -135,6 +135,21 @@ gradlew copySpearDevJar runServer   # 把矛的生产 jar 反转成 dev 映射�
 - 矛兼容的目标方法（`SpearItem.stab`、`SpearItem.m_5929_`、`SpearUser.pierce` 描述符）
   已用 javap 对生产 jar 逐一核对。
 
+### 与「附魔描述」（Enchantment Descriptions）的兼容
+
+`enchdesc`（mod id `enchdesc`）会在每个附魔的名字行后面**无条件**插入 `<附魔ID>.desc` 的描述文本；
+两个候选键都不存在时它也不会跳过，客户端会把原始键名当文本渲染。我们的描述键一直是
+`tooltip.enchantment_reforged.desc.*`，它的语言文件里也没有任何 `enchantment_reforged` 键，
+所以装了它之后每个我们的附魔都会多出一行形如 `enchantment.enchantment_reforged.xxx.description`
+的未翻译文本。处理方式：
+
+- 为 26 个附魔补齐 `enchantment.enchantment_reforged.<name>.desc` 语言键（中英各一句话静态简介）；
+- 检测到 `enchdesc` 已加载时，附魔书不再默认展开我们的动态数值描述，改为按住 Shift 展开
+  （装备本来就是按住 Shift），默认只由它渲染那行简介；
+- 未装 `enchdesc` 时行为完全不变。
+
+这样默认 tooltip 是它给出的简洁简介，按 Shift 看随配置变化的数值明细，两边不重复、也不再泄漏键名。
+
 ## 环境
 
 | 项目 | 版本 |

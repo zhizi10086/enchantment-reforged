@@ -10,6 +10,7 @@ import net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.enchantment.EnchantmentHelper;
@@ -42,6 +43,22 @@ public class EnchantmentReforgedClient implements ClientModInitializer {
 	private static boolean particlePreferenceDirty = true;
 	/** 服务端是否支持"远距离代发轨迹粒子"（收到协议版本 ≥ 2 的索要包时置位） */
 	private static boolean serverSupportsLongDistanceParticles;
+	/** 是否装了 Enchantment Descriptions（装了就把附魔简介让给它渲染，避免重复） */
+	private static Boolean enchDescLoaded;
+
+	/**
+	 * 是否装了 Enchantment Descriptions（mod id: enchdesc）。
+	 *
+	 * <p>它会在每个附魔的名字行后面无条件插入 {@code <附魔ID>.desc} 的描述，
+	 * 而我们的附魔现在也提供了这个键（一句话简介），所以装了它时就把简介让给它渲染，
+	 * 我们自己的数值明细改为"按住 Shift 展开"，避免同一个附魔出现两行描述。
+	 */
+	private static boolean enchDescLoaded() {
+		if (enchDescLoaded == null) {
+			enchDescLoaded = FabricLoader.getInstance().isModLoaded("enchdesc");
+		}
+		return enchDescLoaded;
+	}
 
 	@Override
 	public void onInitializeClient() {
@@ -91,9 +108,16 @@ public class EnchantmentReforgedClient implements ClientModInitializer {
 			if (stack.isOf(Items.ENCHANTED_BOOK)) {
 				List<Text> description = EnchantmentDescriptions.describe(stack);
 				if (!description.isEmpty()) {
-					lines.add(Text.empty());
-					for (Text line : description) {
-						lines.add(line.copy().formatted(Formatting.GRAY));
+					if (!enchDescLoaded() || Screen.hasShiftDown()) {
+						lines.add(Text.empty());
+						for (Text line : description) {
+							lines.add(line.copy().formatted(Formatting.GRAY));
+						}
+					} else {
+						// 装了 Enchantment Descriptions：简介由它用 <附魔ID>.desc 渲染，
+						// 这一行只提示"可以按 Shift 看数值明细"，避免同一个附魔出现两行描述
+						lines.add(Text.translatable("tooltip.enchantment_reforged.desc.hint_shift")
+								.formatted(Formatting.DARK_GRAY));
 					}
 				}
 			} else {
