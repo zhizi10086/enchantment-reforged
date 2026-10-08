@@ -19,6 +19,10 @@ Minecraft **1.20.1** 的附魔与机制改造模组：重做锋利与力量、�
 
 1. **离线依赖**：`libs-m2/` 内放了 `org.spongepowered:mixin:0.8.5:processor`，绕开被墙的 Sponge 仓库；
    另有 `systemProp.net.minecraftforge.gradle.check.certs=false` 与 Maven 镜像（CreeperHost）。
+   另外 `mixinextras-forge` 写成**精确范围** `[0.5.5]`（JarJar 只接受 Maven 范围写法，写裸版本会报
+   invalid version specification），并把 `cacheDynamicVersionsFor` / `cacheChangingModulesFor`
+   设为 365 天——范围版本默认每 24 小时就要联网核对元数据，本机到 Maven Central 不稳时会直接
+   `Read timed out` 导致构建失败。
 2. **`patchRefmap`**：`Level#addFreshEntity`、`Level#addParticle`、`Component#translatable` 是接口继承/接口静态成员，
    Mixin 注解处理器在 tsrg2 里定位不到，构建后手工补进 refmap（SRG 名取自 `build/createMcpToSrg/output.tsrg`）。
 3. **`patchSrgForDev`**：dev 运行时 Mixin 会用 `createSrgToMcp/output.srg` 反查 refmap，

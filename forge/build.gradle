@@ -46,6 +46,16 @@ repositories {
     flatDir { dirs 'libs' }
 }
 
+// JarJar 只接受 Maven 范围格式（写裸版本 "0.5.5" 会报 invalid version specification），
+// 而范围版本默认每 24 小时就要去远程核对一次元数据——本机到 Maven Central 不稳，
+// 一超时就构建失败。这里把动态版本/变动模块的缓存时长拉到 365 天，解析完全走本地缓存。
+configurations.all {
+    resolutionStrategy {
+        cacheDynamicVersionsFor 365, 'days'
+        cacheChangingModulesFor 365, 'days'
+    }
+}
+
 minecraft {
     // 官方（Mojang）映射：与 Forge 1.20.1 生态一致
     mappings channel: 'official', version: project.minecraft_version
@@ -100,8 +110,10 @@ dependencies {
 
     // MixinExtras：@WrapOperation 等注入器（jar-in-jar 打进产物，运行期必需）
     compileOnly(annotationProcessor('io.github.llamalad7:mixinextras-common:0.5.5'))
-    // JarJar 要求版本写成 Maven 范围（与矛模组声明的 [0.5.2,) 一致，避免版本冲突）
-    implementation(jarJar(group: 'io.github.llamalad7', name: 'mixinextras-forge', version: '[0.5.2,)'))
+    // 用"精确范围" [0.5.5] 而不是开放式 [0.5.2,)：JarJar 要求 Maven 范围格式，
+    // 精确范围既满足它、又把解析范围收窄到唯一版本，配合上面的 365 天缓存不会再联网核对。
+    // 矛模组自己嵌套的是 0.5.2，JarJar 在运行期会按版本协商取高版本，不受影响。
+    implementation(jarJar(group: 'io.github.llamalad7', name: 'mixinextras-forge', version: '[0.5.5]'))
 
     // 矛模组 Backported Spears（Forge 版）：仅编译期，用于校验兼容 Mixin 的目标类；
     // 运行期完全可选 —— 没装矛模组时整份兼容配置被 SpearMixinPlugin 跳过。
