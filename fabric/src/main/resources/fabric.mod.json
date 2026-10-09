@@ -30,7 +30,8 @@
   },
   "mixins": [
     "enchantment_reforged.mixins.json",
-    "enchantment_reforged.spears.mixins.json"
+    "enchantment_reforged.spears.mixins.json",
+    "enchantment_reforged.summy_reliquary.mixins.json"
   ],
   "depends": {
     "fabricloader": ">=0.18.4",

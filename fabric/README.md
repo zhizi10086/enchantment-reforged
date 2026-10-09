@@ -38,6 +38,18 @@ Minecraft **1.20.1** / Fabric 的附魔与机制改造模组：重做锋利与�
   动态数值描述，改为按住 Shift 展开（装备本来就是按住 Shift），默认只由它渲染那行简介；
 - 未装 `enchdesc` 时行为完全不变。
 
+## 与「Summy Reliquary」的近战兼容
+
+SR 有两处自造的近战伤害（暗仪刺刀「遁入暗影」的两段斩击、投掷长矛命中），它们直接调
+`player.damage(playerAttack)`，会绕过 ER 挂在 `PlayerEntity#attack` 上的近战管线。这里用一份可选兼容
+把它们接回来（没装 SR 时整份配置被插件跳过，等于不存在）：
+
+- **基础斩击 / 投掷命中**：吃全部乘区（力量 × 死神祝福·造成方 × 复仇）与全部命中后效果；
+- **强力斩击**：按 SR 原设计不吃增伤乘区，但吃魔剑 / 嗜血 / 粒子与**斩杀**，**不掷出其不意**；
+- SR 只产出 Forge 版 jar（Fabric 侧靠 Kilt / Connector 运行），`libs/summy-reliquary-1.8.5-forge.jar`
+  仅作编译期依赖；由于它是 Mojang 名、与 Yarn 的继承链对不上，`build.gradle` 里额外加了
+  `-AdisableTargetValidator=true`（只关闭编译期目标校验，运行期仍由 Mixin 自己校验）。
+
 ## 附魔一览（26 个）
 
 下表是当前全部 26 个附魔的速览（"目标 / 上限"一栏照注册代码写死，具体数值仍以配置为准）；

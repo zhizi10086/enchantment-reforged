@@ -84,6 +84,7 @@ mixin {
     // 完全没有 mixin 的"空壳"，冒烟结果不可信），同时也会写进 jar 的 MixinConfigs。
     config 'enchantment_reforged.mixins.json'
     config 'enchantment_reforged.spears.mixins.json'
+    config 'enchantment_reforged.summy_reliquary.mixins.json'
 }
 
 // ForgeGradle 的 jarJar 默认是关闭的：显式打开，MixinExtras 才会作为嵌套 jar 打进产物
@@ -118,6 +119,10 @@ dependencies {
     // 矛模组 Backported Spears（Forge 版）：仅编译期，用于校验兼容 Mixin 的目标类；
     // 运行期完全可选 —— 没装矛模组时整份兼容配置被 SpearMixinPlugin 跳过。
     compileOnly files('libs/spear-backport-forge-1.4.7-1.20.1.jar')
+    // Summy Reliquary（Forge 版）：同样仅编译期 —— @Mixin(targets = ...) 需要目标类出现在
+    // 编译类路径上，否则注解处理器会直接报 "Mixin target ... could not be found"。
+    // 运行期完全可选，没装 SR 时整份兼容配置被 SummyReliquaryMixinPlugin 跳过。
+    compileOnly files('libs/summy-reliquary-1.8.5-forge.jar')
 }
 
 // ===== 开发期专用：把矛模组的生产 jar 反转成 dev 映射，用于兼容性冒烟 =====
@@ -133,6 +138,21 @@ dependencies {
 
 tasks.register('copySpearDevJar', Copy) {
     from configurations.spearDev
+    into layout.projectDirectory.dir('run/mods')
+}
+
+// Summy Reliquary 同样只有生产 jar（SRG 名），dev 环境直接读会因继承链对不上而失败，
+// 所以照矛的做法额外生成一份 deobf 版本给 runServer / runClient 用（不进产物，不影响 build）。
+configurations {
+    summyReliquaryDev
+}
+
+dependencies {
+    summyReliquaryDev fg.deobf('summy-reliquary:summy-reliquary:1.8.5-forge')
+}
+
+tasks.register('copySummyReliquaryDevJar', Copy) {
+    from configurations.summyReliquaryDev
     into layout.projectDirectory.dir('run/mods')
 }
 
@@ -287,7 +307,9 @@ tasks.register('verifyMixinTargets') {
         def refmap = new groovy.json.JsonSlurper().parseText(refmapFile.text)
         def mappings = refmap.mappings ?: [:]
         // 矛兼容 Mixin 的目标属于矛模组自身（remap = false），不参与这两道检查
-        def skipped = ['SpearItemCompatMixin'] as Set
+        // Summy Reliquary 的两个兼容 Mixin 同理：注入目标属于 SR 自身的成员
+        def skipped = ['SpearItemCompatMixin', 'SummyReliquaryShadowDashMixin',
+                       'SummyReliquaryThrownSpearMixin'] as Set
         def problems = []
 
         mixinDir.eachFile { f ->
@@ -347,7 +369,7 @@ jar {
                 'Implementation-Vendor' : 'Summy'
         ])
         // 注意：配置文件本身是下划线命名（enchantment_reforged.mixins.json），写错成连字符会导致 Mixin 读不到
-        attributes 'MixinConfigs': 'enchantment_reforged.mixins.json,enchantment_reforged.spears.mixins.json'
+        attributes 'MixinConfigs': 'enchantment_reforged.mixins.json,enchantment_reforged.spears.mixins.json,enchantment_reforged.summy_reliquary.mixins.json'
     }
     from('LICENSE') {
         rename { "${it}_${project.base.archivesName.get()}" }

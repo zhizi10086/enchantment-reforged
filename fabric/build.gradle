@@ -37,6 +37,10 @@ dependencies {
     // （生产 jar 是 intermediary 名，必须用 modCompileOnly 让 Loom 重映射成 yarn 名才能解析继承链）。
     // 该模组是 CC0 许可，jar 放在 libs/ 便于复现构建；运行期完全可选（没装矛模组时兼容代码不生效）。
     modCompileOnly files('libs/spear-backport-fabric-1.4.7-1.20.1.jar')
+
+    // Summy Reliquary：它只产出 Forge 版 jar，这里只用于让注解处理器能解析兼容 Mixin 的
+    // @Mixin(targets = ...)；不进产物、也不参与 Loom 重映射，运行期由 Kilt/Connector 提供真实类。
+    compileOnly files('libs/summy-reliquary-1.8.5-forge.jar')
 }
 
 processResources {
@@ -50,6 +54,10 @@ processResources {
 tasks.withType(JavaCompile).configureEach {
     // 本机只装了 JDK 21，因此用 JDK 21 编译、产物字节码锁定 Java 17（Minecraft 1.20.1 的运行目标）
     it.options.release = 17
+    // Fabric 侧的 Summy Reliquary 兼容 Mixin 目标是 Forge 版 jar（Mojang 名），它的继承链与
+    // Yarn 类路径对不上，Mixin 注解处理器会报 "Superclass ... was not found in the hierarchy"。
+    // 关掉目标校验即可（运行期仍由 Mixin 自己校验，且所有注入点都有 require = 0 兜底）。
+    it.options.compilerArgs.add('-AdisableTargetValidator=true')
 }
 
 java {

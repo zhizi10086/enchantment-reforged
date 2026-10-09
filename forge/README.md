@@ -154,6 +154,20 @@ gradlew copySpearDevJar runServer   # 把矛的生产 jar 反转成 dev 映射�
 
 这样默认 tooltip 是它给出的简洁简介，按 Shift 看随配置变化的数值明细，两边不重复、也不再泄漏键名。
 
+### 与「Summy Reliquary」的近战兼容
+
+SR 有两处自造的近战伤害（暗仪刺刀「遁入暗影」的两段斩击、投掷长矛命中），它们直接调
+`target.hurt(playerAttack)`，会绕过 ER 挂在 `Player#attack` 上的近战管线。这里用一份可选兼容
+把它们接回来（没装 SR 时整份配置被插件跳过，等于不存在）：
+
+- **基础斩击 / 投掷命中**：吃全部乘区（力量 × 死神祝福·造成方 × 复仇）与全部命中后效果；
+- **强力斩击**：按 SR 原设计不吃增伤乘区，但吃魔剑 / 嗜血 / 粒子与**斩杀**，**不掷出其不意**；
+- `libs/summy-reliquary-1.8.5-forge.jar` 仅作编译期依赖：`@Mixin(targets = ...)` 要求目标类出现在
+  编译类路径上，否则注解处理器会直接报 `Mixin target ... could not be found`。
+
+开发期验证（把 SR 的生产 jar 反转成 dev 映射）用 `gradlew copySummyReliquaryDevJar`；
+注意 SR 强制依赖 `curios`，无头服务端要跑起来还需要把它一并 deobf 放进 `run/mods`。
+
 ## 环境
 
 | 项目 | 版本 |
