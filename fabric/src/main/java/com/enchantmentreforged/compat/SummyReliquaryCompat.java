@@ -1,5 +1,6 @@
 package com.enchantmentreforged.compat;
 
+import com.enchantmentreforged.EnchantmentReforged;
 import com.enchantmentreforged.combat.CombatFormulas;
 import com.enchantmentreforged.combat.EnchantmentEffects;
 import com.enchantmentreforged.particle.MeleeParticles;
@@ -29,6 +30,8 @@ public final class SummyReliquaryCompat {
 	private static final String PROBE_CLASS = "com/summy/reliquary/effect/ShadowDash.class";
 
 	private static Boolean active;
+	/** 首次真正走到兼容路径时打一条日志（只打一次），用来在实机确认注入确实命中了 */
+	private static boolean loggedFirstHit;
 
 	private SummyReliquaryCompat() {
 	}
@@ -70,6 +73,11 @@ public final class SummyReliquaryCompat {
 			float dealt, boolean allowExecute, boolean allowSurprise) {
 		if (!isActive() || !(attacker instanceof PlayerEntity)) {
 			return;
+		}
+		if (!loggedFirstHit) {
+			loggedFirstHit = true;
+			// require = 0 时"注入没命中"是静默的，这条日志是唯一的实机判据
+			EnchantmentReforged.LOGGER.info("[ER] Summy Reliquary 近战兼容已生效：本次命中按近战管线结算");
 		}
 		EnchantmentEffects.applySpellblade(attacker, weapon, target, dealt);
 		EnchantmentEffects.applyLifesteal(attacker, weapon, dealt);
