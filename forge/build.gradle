@@ -12,6 +12,8 @@ buildscript {
     }
     dependencies {
         classpath 'org.spongepowered:mixingradle:0.7.38'
+        // verifyMixinTargets 用 ASM 读 libs 里对方模组的 jar，核对兼容 Mixin 的 @At 目标
+        classpath 'org.ow2.asm:asm:9.5'
     }
 }
 
@@ -156,6 +158,14 @@ tasks.register('copySummyReliquaryDevJar', Copy) {
     into layout.projectDirectory.dir('run/mods')
 }
 
+// Curios 只在本地做"带 SR 的 dev 冒烟"时才需要（SR 的强制依赖）：jar 不入库（见 .gitignore），
+// 本地没有它时这段配置整体不启用 —— 正常构建、产物、CI 都不受影响。
+if (file('libs/curios-forge-5.14.1+1.20.1.jar').exists()) {
+    dependencies {
+        summyReliquaryDev fg.deobf('curios-forge:curios-forge:5.14.1+1.20.1')
+    }
+}
+
 // 把 gradle.properties 的版本号写进 mods.toml
 processResources {
     inputs.property 'version', project.mod_version
@@ -284,15 +294,19 @@ tasks.register('verifyMixinTargets') {
     outputs.upToDateWhen { false }
 
     doLast {
-        // 收集 dev 版 Minecraft jar 中的全部类名
+        // 收集 dev 版 Minecraft jar 中的全部类名，同时建一个"内部名 -> [jar, 条目]"的索引，
+        // 供下面校验兼容 Mixin 的 @At owner（它们大多是原版类）使用
         def classNames = [] as Set
+        def mcClassIndex = [:]
         configurations.minecraft.files.each { f ->
             if (f.name.endsWith('.jar')) {
                 def zip = new java.util.zip.ZipFile(f)
                 try {
                     zip.entries().each { e ->
                         if (e.name.endsWith('.class')) {
-                            classNames << e.name.substring(0, e.name.length() - '.class'.length())
+                            def internal = e.name.substring(0, e.name.length() - '.class'.length())
+                            classNames << internal
+                            mcClassIndex.putIfAbsent(internal, [f, e.name])
                         }
                     }
                 } finally {
@@ -306,21 +320,138 @@ tasks.register('verifyMixinTargets') {
 
         def refmap = new groovy.json.JsonSlurper().parseText(refmapFile.text)
         def mappings = refmap.mappings ?: [:]
-        // 矛兼容 Mixin 的目标属于矛模组自身（remap = false），不参与这两道检查
-        // Summy Reliquary 的两个兼容 Mixin 同理：注入目标属于 SR 自身的成员
-        def skipped = ['SpearItemCompatMixin', 'SummyReliquaryShadowDashMixin',
-                       'SummyReliquaryThrownSpearMixin'] as Set
+        // 可选兼容的 Mixin：method 选择器指向对方模组自己的成员（refmap 里可能没有条目），
+        // 但它们 @At 的 target 是原版成员——这类改走下面的"按目标 jar 字节码校验"，
+        // 也正是这次 owner 写错（Entity / LivingEntity）却没人发现的地方。
+        def compatMixins = ['SpearItemCompatMixin', 'SummyReliquaryShadowDashMixin',
+                            'SummyReliquaryThrownSpearMixin'] as Set
         def problems = []
+
+        // libs/ 里对方模组 jar 的类索引（用显式目录遍历：doLast 里 fileTree 的委托不可靠）
+        def libClassIndex = [:]
+        def libsDir = file('libs')
+        if (libsDir.exists()) {
+            libsDir.listFiles().each { jarFile ->
+                if (jarFile.name.endsWith('.jar')) {
+                    def zip = new java.util.zip.ZipFile(jarFile)
+                    try {
+                        zip.entries().each { e ->
+                            if (e.name.endsWith('.class')) {
+                                def internal = e.name.substring(0, e.name.length() - '.class'.length())
+                                libClassIndex.putIfAbsent(internal, [jarFile, e.name])
+                            }
+                        }
+                    } finally {
+                        zip.close()
+                    }
+                }
+            }
+        }
+
+        // 取"目标类里指定方法"体内的 INVOKE 集合（owner.name(desc)）。
+        // 注意 @At 匹配的是"目标方法体内那条调用指令"，不是被调用类自身的方法——这点之前搞错过。
+        def invokesInMethod = { String classInternal, String methodName, String methodDesc ->
+            def located = libClassIndex[classInternal] ?: mcClassIndex[classInternal]
+            if (located == null) {
+                return null
+            }
+            def found = [] as Set
+            // Groovy 的匿名内部类改不了外层局部变量，用单元素数组当可变标志
+            def matchedFlag = new boolean[1]
+            def zip = new java.util.zip.ZipFile(located[0])
+            try {
+                def stream = zip.getInputStream(zip.getEntry(located[1]))
+                def visitor = new org.objectweb.asm.ClassVisitor(org.objectweb.asm.Opcodes.ASM9) {
+                    @Override
+                    org.objectweb.asm.MethodVisitor visitMethod(int access, String name, String descriptor,
+                            String signature, String[] exceptions) {
+                        if (!name.equals(methodName)) {
+                            return null
+                        }
+                        // 有描述符就精确匹配；只写了方法名时按名字匹配（覆盖全部重载）
+                        if (methodDesc != null && !descriptor.equals(methodDesc)) {
+                            return null
+                        }
+                        matchedFlag[0] = true
+                        return new org.objectweb.asm.MethodVisitor(org.objectweb.asm.Opcodes.ASM9) {
+                            @Override
+                            void visitMethodInsn(int opcode, String callOwner, String callName,
+                                    String callDescriptor, boolean isInterface) {
+                                found << (callOwner + '.' + callName + callDescriptor)
+                            }
+                        }
+                    }
+                }
+                new org.objectweb.asm.ClassReader(stream).accept(visitor, 0)
+                stream.close()
+            } finally {
+                zip.close()
+            }
+            return [matched: matchedFlag[0], invokes: found]
+        }
+
+        // refmap 的值形如 "Lowner;name(desc)ret"，归一成 "owner.name(desc)ret" 便于比对
+        def normalizeMember = { String member ->
+            if (member != null && member.startsWith('L')) {
+                def semi = member.indexOf(';')
+                if (semi > 0) {
+                    return member.substring(1, semi) + '.' + member.substring(semi + 1)
+                }
+            }
+            return member
+        }
+
+        // 拆出方法名与描述符（只写了方法名时描述符为 null）
+        def splitMember = { String member ->
+            def normalized = normalizeMember(member)
+            def lp = normalized.indexOf('(')
+            def namePart = lp > 0 ? normalized.substring(0, lp) : normalized
+            def desc = lp > 0 ? normalized.substring(lp) : null
+            // 归一后形如 "owner.name"，方法名是最后一段（@At 比对时用的是带 owner 的全名）
+            def dot = namePart.lastIndexOf('.')
+            return [name: dot >= 0 ? namePart.substring(dot + 1) : namePart, desc: desc]
+        }
 
         mixinDir.eachFile { f ->
             if (!f.name.endsWith('.java')) {
                 return
             }
             def cls = f.name.substring(0, f.name.length() - '.java'.length())
-            if (skipped.contains(cls)) {
+            def text = f.text
+
+            // 0) 兼容 Mixin：先定位它注入的"目标方法"，再确认 @At 找的那条调用真的在该方法体内
+            if (compatMixins.contains(cls)) {
+                def targetMatch = (text =~ /@Mixin\(targets\s*=\s*"([^"]+)"/)
+                if (!targetMatch.find()) {
+                    problems << "$cls: 解析不了 @Mixin 的 targets"
+                    return
+                }
+                def targetInternal = targetMatch.group(1).replace('.', '/')
+                def byMixin = mappings["com/enchantmentreforged/mixin/$cls"] ?: [:]
+
+                def methodKeys = (text =~ /method\s*=\s*"([^"]+)"/).collect { it[1] } as Set
+                def atTargets = (text =~ /target\s*=\s*"(L[^"]+)"/).collect { it[1] } as Set
+
+                methodKeys.each { mk ->
+                    def split = splitMember(byMixin[mk] ?: mk)
+                    def result = invokesInMethod(targetInternal, split.name, split.desc)
+                    if (result == null) {
+                        problems << "$cls: 目标类 $targetInternal 在 libs 或 Minecraft jar 里找不到"
+                        return
+                    }
+                    if (!result.matched) {
+                        problems << "$cls: 目标方法 ${split.name}${split.desc ?: ''} 在 $targetInternal 里找不到"
+                        return
+                    }
+                    atTargets.each { raw ->
+                        def expected = normalizeMember(byMixin[raw] ?: raw)
+                        if (!result.invokes.contains(expected)) {
+                            problems << "$cls: 目标方法 ${split.name} 体内没有对 $expected 的调用（@At 的 owner/名字写错会静默失效）"
+                        }
+                    }
+                }
                 return
             }
-            def text = f.text
 
             // 1) 注解里引用的 Minecraft 类必须存在
             def classRefs = (text =~ /L(net\/minecraft\/[^;]+);/).collect { it[1] } as Set

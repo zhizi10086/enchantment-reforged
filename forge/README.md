@@ -168,6 +168,18 @@ SR 有两处自造的近战伤害（暗仪刺刀「遁入暗影」的两段斩�
 开发期验证（把 SR 的生产 jar 反转成 dev 映射）用 `gradlew copySummyReliquaryDevJar`；
 注意 SR 强制依赖 `curios`，无头服务端要跑起来还需要把它一并 deobf 放进 `run/mods`。
 
+骨架里有三处与"静默失效"有关的保护，值得记住：
+
+1. **`verifyMixinTargets` 会对兼容 Mixin 做字节码级校验**：用 ASM 打开 `libs/` 里对方模组的 jar，
+   先定位 `@WrapOperation(method = ...)` 指定的目标方法，再检查 `@At(target = ...)` 找的那条调用
+   是否真的在该方法体内。owner 或方法名写错（例如 `Entity#hurt` 写成 `LivingEntity#hurt`）会被
+   直接拦下 —— 这类错误在 `require = 0` 下是完全静默的，实机才会发现。
+2. **dev 冒烟要带 SR 才能覆盖这条链路**：`copySummyReliquaryDevJar` 把 SR（以及本地存在时的 Curios）
+   的 deobf 版本放进 `run/mods`。注意该任务**没有**被 `runServer` 依赖，需要手动串起来：
+   `gradlew copySummyReliquaryDevJar runServer`。
+3. **Curios 的 jar 不入库**（`.gitignore` 里忽略 `libs/curios-*.jar`）：`build.gradle` 里那段
+   deobf 配置包在 `if (file(...).exists())` 里，本地没有 Curios 时整条链路不启用，不影响正常构建。
+
 ## 环境
 
 | 项目 | 版本 |

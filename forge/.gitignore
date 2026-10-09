@@ -12,3 +12,6 @@ bin/
 
 # 本地运行目录
 run/
+
+# 本地冒烟专用的第三方 jar（Curios）：需要在本地存在才能启用"带 SR 的 dev 冒烟"，不入库
+libs/curios-*.jar
