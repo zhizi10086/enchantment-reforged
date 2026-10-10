@@ -91,7 +91,9 @@ public final class SummyReliquaryCompat {
 		if (attacker == null || target == null) {
 			return;
 		}
-		if (!loggedFirstHit) {
+		// 这条只作"SR 兼容注入确实命中了"的实机判据，所以必须装了 SR 才有意义
+		// （左键近战也走本方法，不装 SR 时它同样会被调用）
+		if (isActive() && !loggedFirstHit) {
 			loggedFirstHit = true;
 			// require = 0 时"注入没命中"是静默的，这条日志是唯一的实机判据
 			EnchantmentReforged.LOGGER.info("[ER] Summy Reliquary 近战兼容已生效：本次命中按近战管线结算");
@@ -157,6 +159,11 @@ public final class SummyReliquaryCompat {
 			boolean allowExecute, boolean allowSurprise, boolean targetGone,
 			EnchantmentEffects.SurpriseRoll surprise, boolean surpriseLanded) {
 		if (!EnchantmentReforgedConfig.get().debugSrCompat || !isActive()) {
+			return;
+		}
+		// 只在逻辑服务端输出：客户端预测也会跑同一段注入（hurt 必然 false、金额也不等于服务端），
+		// 两行叠在一起反而看不清真正生效的那一次
+		if (attacker.level().isClientSide()) {
 			return;
 		}
 		long tick = attacker.level().getGameTime();
@@ -257,7 +264,9 @@ public final class SummyReliquaryCompat {
 			return "档位未上报（按原版）";
 		}
 		return "主命中" + preference.meleeStyle() + " / 横扫" + preference.sweepStyle()
-				+ " / 出其不意" + preference.surpriseStyle() + " / 强度" + preference.meleeEffect();
+				+ " / 出其不意" + preference.surpriseStyle() + " / 强度" + preference.meleeEffect()
+				// SR 的斩击弧线是否由我们接管（与 SR 弧线注入用的是同一个判据）
+				+ "（SR 弧线接管=" + (MeleeParticles.takesOverExternalSlashArc(attacker) ? "是" : "否") + "）";
 	}
 
 	private static String fmt(float value) {
