@@ -1,12 +1,15 @@
 package com.enchantmentreforged.mixin;
 
 import com.enchantmentreforged.compat.SummyReliquaryCompat;
+import com.enchantmentreforged.particle.MeleeParticles;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import net.minecraft.core.particles.ParticleOptions;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
@@ -33,15 +36,16 @@ public abstract class SummyReliquaryShadowDashMixin {
 	)
 	private static boolean enchantmentReforged$shadowDashStrike(LivingEntity target, DamageSource source, float amount,
 			Operation<Boolean> original) {
-		if (!(source.getDirectEntity() instanceof Player player)) {
+		Player player = source.getDirectEntity() instanceof Player attacker ? attacker : null;
+		// 先登记"紧随其后那条原版横扫弧线"的归属：SR 是先 hurt、再发弧线
+		MeleeParticles.armExternalSlashArc(player);
+		if (player == null) {
 			return original.call(target, source, amount);
 		}
 		float adjusted = amount * SummyReliquaryCompat.meleeMultiplier(player);
 		boolean hit = original.call(target, source, adjusted);
-		if (hit) {
-			ItemStack weapon = player.getMainHandItem();
-			SummyReliquaryCompat.onMeleeHit(player, weapon, target, source, Math.max(adjusted, 0.0F), true, true);
-		}
+		SummyReliquaryCompat.settleHit("strike", player, player.getMainHandItem(), target, source,
+				amount, adjusted, hit, true, true, true);
 		return hit;
 	}
 
@@ -60,14 +64,55 @@ public abstract class SummyReliquaryShadowDashMixin {
 	)
 	private static boolean enchantmentReforged$shadowDashHeavySlash(LivingEntity target, DamageSource source,
 			float amount, Operation<Boolean> original) {
-		if (!(source.getDirectEntity() instanceof Player player)) {
+		Player player = source.getDirectEntity() instanceof Player attacker ? attacker : null;
+		MeleeParticles.armExternalSlashArc(player);
+		if (player == null) {
 			return original.call(target, source, amount);
 		}
 		boolean hit = original.call(target, source, amount);
-		if (hit) {
-			ItemStack weapon = player.getMainHandItem();
-			SummyReliquaryCompat.onMeleeHit(player, weapon, target, source, Math.max(amount, 0.0F), true, false);
-		}
+		SummyReliquaryCompat.settleHit("heavySlash", player, player.getMainHandItem(), target, source,
+				amount, amount, hit, true, false, true);
 		return hit;
+	}
+
+	/**
+	 * SR 每结算一次斩击都会在目标身上放一条原版横扫弧线（{@code SWEEP_ATTACK}）。
+	 *
+	 * <p>它不是玩家左键的横扫，SR 自己发的，所以原版档位管不到它 —— 这里按我们的近战 / 横扫档位接管：
+	 * 档位 0（原版默认）原样放行；任一档位 ≥1 时不再发原版弧线，改在该位置按档位生成我们的粒子。
+	 */
+	@WrapOperation(
+			method = "strike",
+			at = @At(
+					value = "INVOKE",
+					target = "Lnet/minecraft/server/level/ServerLevel;sendParticles(Lnet/minecraft/core/particles/ParticleOptions;DDDIDDDD)I"
+			),
+			require = 0
+	)
+	private static int enchantmentReforged$takeOverStrikeArc(ServerLevel world, ParticleOptions particle,
+			double x, double y, double z, int count, double deltaX, double deltaY, double deltaZ, double speed,
+			Operation<Integer> original) {
+		if (MeleeParticles.consumeExternalSlashArc(particle, new Vec3(x, y, z))) {
+			return 0;
+		}
+		return original.call(world, particle, x, y, z, count, deltaX, deltaY, deltaZ, speed);
+	}
+
+	/** 强力斩击同样会逐目标放一条原版横扫弧线，处置同上 */
+	@WrapOperation(
+			method = "heavySlash",
+			at = @At(
+					value = "INVOKE",
+					target = "Lnet/minecraft/server/level/ServerLevel;sendParticles(Lnet/minecraft/core/particles/ParticleOptions;DDDIDDDD)I"
+			),
+			require = 0
+	)
+	private static int enchantmentReforged$takeOverHeavyArc(ServerLevel world, ParticleOptions particle,
+			double x, double y, double z, int count, double deltaX, double deltaY, double deltaZ, double speed,
+			Operation<Integer> original) {
+		if (MeleeParticles.consumeExternalSlashArc(particle, new Vec3(x, y, z))) {
+			return 0;
+		}
+		return original.call(world, particle, x, y, z, count, deltaX, deltaY, deltaZ, speed);
 	}
 }

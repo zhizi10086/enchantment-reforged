@@ -127,6 +127,8 @@
   "text.enchantment_reforged.option.strength_multiplier_per_level.tooltip": "Damage multiplier per level of StrengthPlus: 0.5 = +50% per level",
   "text.enchantment_reforged.option.apply_strength_to_mobs": "Affect mobs",
   "text.enchantment_reforged.option.apply_strength_to_mobs.tooltip": "Whether mob melee attacks also get the StrengthPlus multiplier",
+  "text.enchantment_reforged.option.debug_sr_compat": "SR compat debug log",
+  "text.enchantment_reforged.option.debug_sr_compat.tooltip": "Logs per-hit settlement values for the Shadow Dash slashes and melee (troubleshooting; turn off later)",
   "text.enchantment_reforged.option.enable_protection_level_5": "Protection level 5",
   "text.enchantment_reforged.option.enable_protection_level_5.tooltip": "Unlocks vanilla Protection 5 (combine two Protection IV on an anvil)",
   "text.enchantment_reforged.option.enable_impaling_bedrock_rule": "Impaling bedrock rule",

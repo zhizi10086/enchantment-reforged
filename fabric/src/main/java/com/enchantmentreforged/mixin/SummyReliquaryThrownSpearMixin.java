@@ -50,10 +50,8 @@ public abstract class SummyReliquaryThrownSpearMixin {
 		}
 		float adjusted = amount * SummyReliquaryCompat.meleeMultiplier(player);
 		boolean hit = original.call(target, source, adjusted);
-		if (hit) {
-			SummyReliquaryCompat.onMeleeHit(player, player.getMainHandStack(), target, source,
-					Math.max(adjusted, 0.0F), true, true);
-		}
+		SummyReliquaryCompat.settleHit("thrownSpear", player, player.getMainHandStack(), target, source,
+				amount, adjusted, hit, true, true, true);
 		return hit;
 	}
 }

@@ -195,17 +195,18 @@ public final class EnchantmentEffects {
 	 * 这样三叉戟投出去命中也能吃到魔剑加成。
 	 */
 	public static void applySpellblade(LivingEntity attacker, ItemStack sourceStack, Entity target, float dealtDamage) {
-		EnchantmentReforgedConfig config = EnchantmentReforgedConfig.get();
-		if (!config.enableSpellblade || ModEnchantments.SPELLBLADE == null) {
-			return;
-		}
-		int level = levelOf(sourceStack, ModEnchantments.SPELLBLADE);
-		if (level <= 0) {
-			return;
-		}
-		float magic = dealtDamage * config.spellbladeMagicPercentPerLevel * level;
+		applySpellbladeReport(attacker, sourceStack, target, dealtDamage);
+	}
+
+	/**
+	 * 魔剑：与 {@link #applySpellblade} 完全同一口径，但返回**实际落地的追加魔法伤害**
+	 * （0 = 没触发、或目标已死没落地）。近战结算与 `[ER-SR]` 诊断日志用它。
+	 */
+	public static float applySpellbladeReport(LivingEntity attacker, ItemStack sourceStack, Entity target,
+			float dealtDamage) {
+		float magic = spellbladeMagic(sourceStack, dealtDamage);
 		if (magic <= 0.0F) {
-			return;
+			return 0.0F;
 		}
 		DamageSource source = attacker.level().damageSources().indirectMagic(attacker, attacker);
 		// 同一 tick 内追加的伤害会被主伤害留下的受击冷却吞掉（只会按差值生效甚至完全忽略），
@@ -213,7 +214,20 @@ public final class EnchantmentEffects {
 		if (target instanceof LivingEntity livingTarget) {
 			livingTarget.invulnerableTime = 0;
 		}
-		target.hurt(source, magic);
+		return target.hurt(source, magic) ? magic : 0.0F;
+	}
+
+	/** 魔剑本次应当追加的魔法伤害（0 = 开关关闭 / 武器没该附魔 / 伤害为 0）；诊断日志也用它 */
+	public static float spellbladeMagic(ItemStack sourceStack, float dealtDamage) {
+		EnchantmentReforgedConfig config = EnchantmentReforgedConfig.get();
+		if (!config.enableSpellblade || ModEnchantments.SPELLBLADE == null) {
+			return 0.0F;
+		}
+		int level = levelOf(sourceStack, ModEnchantments.SPELLBLADE);
+		if (level <= 0) {
+			return 0.0F;
+		}
+		return Math.max(0.0F, dealtDamage) * config.spellbladeMagicPercentPerLevel * level;
 	}
 
 	/** 嗜血：近战入口，等级取自攻击者主手 */
@@ -223,15 +237,30 @@ public final class EnchantmentEffects {
 
 	/** 嗜血：按造成的伤害回复生命（{@code sourceStack} 决定等级，投掷三叉戟传本体） */
 	public static void applyLifesteal(LivingEntity attacker, ItemStack sourceStack, float dealtDamage) {
+		applyLifestealReport(attacker, sourceStack, dealtDamage);
+	}
+
+	/** 嗜血：与 {@link #applyLifesteal} 完全同一口径，返回本次实际回复量（0 = 没触发） */
+	public static float applyLifestealReport(LivingEntity attacker, ItemStack sourceStack, float dealtDamage) {
+		float heal = lifestealHeal(sourceStack, dealtDamage);
+		if (heal <= 0.0F) {
+			return 0.0F;
+		}
+		attacker.heal(heal);
+		return heal;
+	}
+
+	/** 嗜血本次应当回复的生命（0 = 开关关闭 / 武器没该附魔 / 伤害为 0）；诊断日志也用它 */
+	public static float lifestealHeal(ItemStack sourceStack, float dealtDamage) {
 		EnchantmentReforgedConfig config = EnchantmentReforgedConfig.get();
 		if (!config.enableLifesteal || ModEnchantments.LIFESTEAL == null) {
-			return;
+			return 0.0F;
 		}
 		int level = levelOf(sourceStack, ModEnchantments.LIFESTEAL);
 		if (level <= 0) {
-			return;
+			return 0.0F;
 		}
-		attacker.heal(dealtDamage * config.lifestealPercentPerLevel * level);
+		return Math.max(0.0F, dealtDamage) * config.lifestealPercentPerLevel * level;
 	}
 
 	// ==================== 忠诚改版 ====================
@@ -433,17 +462,39 @@ public final class EnchantmentEffects {
 
 	// ==================== 出其不意 ====================
 
+	/**
+	 * 出其不意的一次判定详情。
+	 *
+	 * @param level  武器上的附魔等级（0 = 没该附魔）
+	 * @param chance 触发几率（0 ~ 1）
+	 * @param roll   本次掷出的随机数；{@code < 0} 表示"按设计根本没掷"（开关关闭 / 没附魔）
+	 * @param hit    是否触发
+	 */
+	public record SurpriseRoll(int level, float chance, float roll, boolean hit) {
+	}
+
 	/** 出其不意：本次攻击是否额外生效一次 */
 	public static boolean rollSurprise(LivingEntity attacker, ItemStack weapon) {
+		return rollSurpriseRoll(attacker, weapon).hit();
+	}
+
+	/**
+	 * 出其不意：掷一次并把详情一起返回（近战结算与 `[ER-SR]` 诊断日志用它）。
+	 *
+	 * <p>与原实现的随机数消耗完全一致：只有"开关开启 + 武器带该附魔"才会消耗一次 {@code nextFloat()}。
+	 */
+	public static SurpriseRoll rollSurpriseRoll(LivingEntity attacker, ItemStack weapon) {
 		EnchantmentReforgedConfig config = EnchantmentReforgedConfig.get();
 		if (!config.enableSurprise || ModEnchantments.SURPRISE == null) {
-			return false;
+			return new SurpriseRoll(0, 0.0F, -1.0F, false);
 		}
 		int level = levelOf(weapon, ModEnchantments.SURPRISE);
 		if (level <= 0) {
-			return false;
+			return new SurpriseRoll(0, 0.0F, -1.0F, false);
 		}
-		return attacker.getRandom().nextFloat() < config.surpriseChancePerLevel * level;
+		float chance = config.surpriseChancePerLevel * level;
+		float roll = attacker.getRandom().nextFloat();
+		return new SurpriseRoll(level, chance, roll, roll < chance);
 	}
 
 	// ==================== 幻影箭 / 箭矢兼容 ====================
@@ -991,23 +1042,29 @@ public final class EnchantmentEffects {
 	 * 又远小于 {@code Float.MAX_VALUE}，不会污染装备耐久与统计数值。
 	 */
 	public static void tryExecute(LivingEntity attacker, Entity target, ItemStack weapon) {
+		tryExecuteReport(attacker, target, weapon);
+	}
+
+	/** 斩杀：与 {@link #tryExecute} 完全同一口径，返回是否真的补了这一刀（诊断日志用它） */
+	public static boolean tryExecuteReport(LivingEntity attacker, Entity target, ItemStack weapon) {
 		EnchantmentReforgedConfig config = EnchantmentReforgedConfig.get();
 		if (!config.enableExecution || ModEnchantments.EXECUTION == null) {
-			return;
+			return false;
 		}
 		if (!(target instanceof LivingEntity victim) || victim.isDeadOrDying()) {
-			return;
+			return false;
 		}
 		if (levelOf(weapon, ModEnchantments.EXECUTION) <= 0) {
-			return;
+			return false;
 		}
 		if (victim.getHealth() > victim.getMaxHealth() * config.executionThreshold) {
-			return;
+			return false;
 		}
 		DamageSource source = executionDamageSource(attacker, victim);
 		// 清掉受击冷却，否则这一击会被无敌帧吞掉
 		victim.invulnerableTime = 0;
 		victim.hurt(source, (victim.getHealth() + victim.getAbsorptionAmount()) * 5.0F + 10.0F);
+		return true;
 	}
 
 	/** 斩杀的伤害源：优先用自定义伤害类型，取不到时退回普通攻击来源 */

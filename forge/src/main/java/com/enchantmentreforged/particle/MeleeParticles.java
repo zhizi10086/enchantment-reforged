@@ -6,6 +6,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.core.particles.ParticleOptions;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.ServerLevel;
@@ -56,6 +57,14 @@ public final class MeleeParticles {
 	}
 
 	private static final List<Burst> BURSTS = new ArrayList<>();
+
+	/**
+	 * 外部模组（Summy Reliquary 的斩击）那条原版弧线的归属：命中时登记、发弧线时消费。
+	 *
+	 * <p>实体伤害结算都在服务端线程上串行执行，所以普通静态字段即可。
+	 */
+	private static LivingEntity externalArcOwner;
+	private static boolean externalArcTakeOver;
 
 	private MeleeParticles() {
 	}
@@ -121,6 +130,75 @@ public final class MeleeParticles {
 		}
 		queueBurst((ServerLevel) attacker.level(), attacker.getUUID(),
 				new Vec3[]{hitPosition(attacker, target)}, Channel.SURPRISE);
+	}
+
+	// ==================== 外部弧线接管（Summy Reliquary 的斩击） ====================
+
+	/**
+	 * 兼容层用：外部模组（SR 的 {@code ShadowDash#strike} / {@code #heavySlash}）跟着自己的命中
+	 * 发送的那条原版横扫弧线（{@code SWEEP_ATTACK}），这一击要不要由我们接管。
+	 *
+	 * <p>口径与近战粒子一致：主命中档或横扫档**任一 ≥1**（玩家明确要求"不要原版粒子"）就接管；
+	 * 两档都是 0（原版默认）时保持原版行为。
+	 */
+	public static boolean takesOverExternalSlashArc(LivingEntity attacker) {
+		if (attacker == null) {
+			return false;
+		}
+		ParticlePreferences.Preference preference = ParticlePreferences.preferenceOf(attacker.getUUID());
+		return preference != null && (preference.meleeStyle() >= 1 || preference.sweepStyle() >= 1);
+	}
+
+	/**
+	 * 兼容层用：SR 的命中包装里登记"紧随其后的那条外部弧线归谁"。
+	 *
+	 * <p>SR 的两个斩击方法都是"先 hurt、再发弧线"，所以命中时登记、发弧线时消费，一次一清。
+	 */
+	public static void armExternalSlashArc(LivingEntity attacker) {
+		externalArcOwner = attacker;
+		externalArcTakeOver = takesOverExternalSlashArc(attacker);
+	}
+
+	/**
+	 * 兼容层用：外部弧线真的到来时调用。
+	 *
+	 * @return true = 已由我们接管（调用方不要再发原版弧线）；false = 放行原版
+	 */
+	public static boolean consumeExternalSlashArc(ParticleOptions particle, Vec3 point) {
+		LivingEntity owner = externalArcOwner;
+		boolean takeOver = externalArcTakeOver;
+		// 用掉即清空：只影响"紧随命中之后的那一条弧线"
+		externalArcOwner = null;
+		externalArcTakeOver = false;
+		if (!takeOver || owner == null || particle != ParticleTypes.SWEEP_ATTACK || point == null) {
+			return false;
+		}
+		spawnExternalSlashParticles(owner, point);
+		return true;
+	}
+
+	/**
+	 * 兼容层用：接管外部弧线后，在弧线原本的位置按我们的档位喷发粒子。
+	 *
+	 * <p>横扫档 ≥2 优先（那本来就是一条弧线），否则退回主命中档 ≥2；都不到 2 就只屏蔽、不生成。
+	 */
+	public static void spawnExternalSlashParticles(LivingEntity attacker, Vec3 point) {
+		if (point == null || !isServerPlayerAttacker(attacker)) {
+			return;
+		}
+		ParticlePreferences.Preference preference = ParticlePreferences.preferenceOf(attacker.getUUID());
+		if (preference == null) {
+			return;
+		}
+		Channel channel;
+		if (preference.sweepStyle() >= 2) {
+			channel = Channel.SWEEP;
+		} else if (preference.meleeStyle() >= 2) {
+			channel = Channel.HIT;
+		} else {
+			return;
+		}
+		queueBurst((ServerLevel) attacker.level(), attacker.getUUID(), new Vec3[]{point}, channel);
 	}
 
 	/** 服务端每 tick 推进待喷发队列（在 END_SERVER_TICK 里调用一次） */

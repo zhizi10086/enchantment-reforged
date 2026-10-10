@@ -154,6 +154,26 @@ gradlew copySpearDevJar runServer   # 把矛的生产 jar 反转成 dev 映射�
 
 这样默认 tooltip 是它给出的简洁简介，按 Shift 看随配置变化的数值明细，两边不重复、也不再泄漏键名。
 
+### 1.3.4-forge 覆盖发布（SR 兼容诊断日志 + 三处口径修正）
+
+Kilt / Connector 环境实测"暗仪刺刀 × 附魔"的问题分两部分，这一版分别处理（**版本号沿用 1.3.4-forge，覆盖同名产物**，
+与 Fabric 端同步实施）：
+
+- **已核实的事实**：三处注入点与 refmap 跟 SR 生产 jar（SRG 名）逐字一致 ——
+  `ShadowDash#strike`/`#heavySlash` 内 `LivingEntity#m_6469_`、`ThrownSpear#m_5790_` 内 `Entity#m_6469_`；
+  新增的弧线接管目标为 `ServerLevel#m_8767_`（`sendParticles`），`verifyMixinTargets` 全绿。
+- **诊断日志**：`debug_sr_compat`（默认开）打开时，每次近战结算打一行 `[ER-SR] …`，含原始金额、乘区三分量、
+  魔剑 / 嗜血 / 斩杀 / 出其不意的实际结果、`hurt` 返回值、目标血量与四项粒子档位（每 tick 最多 8 行、同内容去重）。
+- **修掉的三处口径**：① 目标已死时不再掷出其不意 / 不补魔剑与斩杀（嗜血照常，击杀照常回血）；② 出其不意粒子
+  改为"二次伤害确实落地后才播"；③ SR 每次斩击自己发的原版横扫弧线纳入我们的近战 / 横扫档位（`strike` 与
+  `heavySlash` 都接管；两档都是 0 时保持原版）。
+- 计数：配置项 79 → **80**（新增 `debug_sr_compat`，核心机制 7 → 8）；语言键中英各 296 → **298**；
+  附魔（26）与网络协议（8）不变。
+- 验证：`gradlew build` 通过（含 `verifyMixinTargets`，27 个 mixin 文件全绿）；无头 `runServer` 两轮
+  （不装 SR / 装 deobf SR + Curios）都到 `Done`，第二轮日志出现
+  `Mixing SummyReliquaryShadowDashMixin … into com.summy.reliquary.effect.ShadowDash` 与
+  `Mixing SummyReliquaryThrownSpearMixin … into com.summy.reliquary.entity.ThrownSpear`，零注入失败。
+
 ### 与「Summy Reliquary」的近战兼容
 
 SR 有两处自造的近战伤害（暗仪刺刀「遁入暗影」的两段斩击、投掷长矛命中），它们直接调
@@ -162,6 +182,16 @@ SR 有两处自造的近战伤害（暗仪刺刀「遁入暗影」的两段斩�
 
 - **基础斩击 / 投掷命中**：吃全部乘区（力量 × 死神祝福·造成方 × 复仇）与全部命中后效果；
 - **强力斩击**：按 SR 原设计不吃增伤乘区，但吃魔剑 / 嗜血 / 粒子与**斩杀**，**不掷出其不意**；
+- **SR 自己发的那条原版横扫弧线也归我们管**（1.3.4-forge 覆盖发布起）：SR 每次斩击都会在目标身上发一条
+  `SWEEP_ATTACK`，它不经过玩家左键路径、原版档位管不到，因此改为按我们的档位处置——主命中档或横扫档
+  **任一 ≥1** 就不再发原版弧线（横扫档 ≥2 时在该位置生成所选横扫粒子，否则退回主命中档 ≥2）；两档都是 0
+  （原版默认）时保持原版。音效不归粒子口径，照旧播放；
+- **目标已死时不再掷出其不意**（同上）：这一击已经把目标打死时，不再补魔剑 / 斩杀 / 出其不意，也不再发它们的
+  粒子（嗜血仍按本次伤害结算，击杀照常回血），消除"只有粒子、没有伤害"的假象；出其不意的粒子也改成
+  "二次伤害确实落地后才播"；
+- **诊断日志**：`debug_sr_compat`（默认开）打开时，每次近战结算都会打一行
+  `[ER-SR] strike|heavySlash|thrownSpear|melee | …`，含原始金额、乘区三分量、魔剑/嗜血/斩杀/出其不意的实际
+  结果、`hurt` 返回值、目标血量与四项粒子档位（每 tick 最多 8 行、同内容去重）；
 - `libs/summy-reliquary-1.8.5-forge.jar` 仅作编译期依赖：`@Mixin(targets = ...)` 要求目标类出现在
   编译类路径上，否则注解处理器会直接报 `Mixin target ... could not be found`。
 

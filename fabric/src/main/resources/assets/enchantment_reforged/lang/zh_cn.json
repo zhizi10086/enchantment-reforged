@@ -127,6 +127,8 @@
   "text.enchantment_reforged.option.strength_multiplier_per_level.tooltip": "力量Plus 每级的伤害倍率，0.5 = 每级 +50%",
   "text.enchantment_reforged.option.apply_strength_to_mobs": "力量作用于生物",
   "text.enchantment_reforged.option.apply_strength_to_mobs.tooltip": "生物的近战攻击是否也享受力量Plus 加成",
+  "text.enchantment_reforged.option.debug_sr_compat": "SR 兼容诊断日志",
+  "text.enchantment_reforged.option.debug_sr_compat.tooltip": "把暗仪刺刀斩击与左键近战的逐次结算数值写进日志（排查用，稳定后可关）",
   "text.enchantment_reforged.option.enable_protection_level_5": "保护 5 级",
   "text.enchantment_reforged.option.enable_protection_level_5.tooltip": "开放原版保护 5 级（铁砧两个 IV 合成 V）",
   "text.enchantment_reforged.option.enable_impaling_bedrock_rule": "穿刺基岩规则",

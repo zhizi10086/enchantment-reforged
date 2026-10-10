@@ -5,6 +5,7 @@ import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.enchantmentreforged.combat.CombatFormulas;
 import com.enchantmentreforged.combat.EnchantmentEffects;
 import com.enchantmentreforged.combat.HungerOwner;
+import com.enchantmentreforged.compat.SummyReliquaryCompat;
 import com.mojang.authlib.GameProfile;
 import com.enchantmentreforged.particle.MeleeParticles;
 import com.enchantmentreforged.registry.ModAttributes;
@@ -189,30 +190,10 @@ public abstract class PlayerEntityMixin {
 				* EnchantmentEffects.deathsBlessingOutgoing(self)
 				* EnchantmentEffects.revengeMultiplier(self);
 		boolean hit = original.call(target, source, finalAmount);
-		if (hit) {
-			// 魔剑与嗜血都以本次最终伤害为基准
-			float dealt = Math.max(finalAmount, 0.0F);
-			EnchantmentEffects.applySpellblade(self, target, dealt);
-			EnchantmentEffects.applyLifesteal(self, dealt);
-			// 近战粒子：只在"主命中"的目标处生成一次（开发环境下横扫会走同一个注入点，这里排除掉）
-			if (target == this.enchantmentReforged$attackTarget) {
-				MeleeParticles.spawnOnHit(self, target);
-				// 斩杀：只有"主命中"才判定补刀（横扫的每个目标不参与）
-				EnchantmentEffects.tryExecute(self, target, self.getMainHandStack());
-			}
-			// 出其不意：按几率让本次攻击再结算一次（会再次触发上面的魔剑/嗜血）
-			if (EnchantmentEffects.rollSurprise(self, self.getMainHandStack())) {
-				// 出其不意触发时的额外粒子（类型独立、强度沿用近战强度档）
-				MeleeParticles.spawnSurprise(self, target);
-				if (target instanceof LivingEntity livingTarget) {
-					livingTarget.timeUntilRegen = 0;
-				}
-				if (target.damage(source, finalAmount)) {
-					EnchantmentEffects.applySpellblade(self, target, dealt);
-					EnchantmentEffects.applyLifesteal(self, dealt);
-				}
-			}
-		}
+		// 命中后效果统一走 SummyReliquaryCompat.settleHit：与 SR 兼容路径共用同一套口径与同一份诊断日志。
+		// （魔剑/嗜血恒定；主命中粒子与斩杀只在"主命中"；出其不意两条路径都掷）
+		SummyReliquaryCompat.settleHit("melee", self, self.getMainHandStack(), target, source,
+				amount, finalAmount, hit, true, true, target == this.enchantmentReforged$attackTarget);
 		return hit;
 	}
 
