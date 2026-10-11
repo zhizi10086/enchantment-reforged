@@ -210,6 +210,19 @@ SR 有两处自造的近战伤害（暗仪刺刀「遁入暗影」的两段斩�
 3. **Curios 的 jar 不入库**（`.gitignore` 里忽略 `libs/curios-*.jar`）：`build.gradle` 里那段
    deobf 配置包在 `if (file(...).exists())` 里，本地没有 Curios 时整条链路不启用，不影响正常构建。
 
+### 与「Summy Reliquary: Apocrypha」的箭矢粒子兼容
+
+ER 的箭矢轨迹原本只作用于原版两种箭（`ArrowParticleTrails#isArrow` 是实体类型白名单），SRA 的自定义落箭
+`summy-reliquary-apocrypha:new_testament_arrow` 会被直接跳过 —— 客户端本地渲染与服务端远距离代发
+走的是同一个判断。现在白名单扩成「原版两种箭 **或** 软兼容注册名列表」，SRA 的落箭已在列表里：
+
+- **表现与普通箭矢一致**：落箭同样继承原版箭矢基类，构造时经 `setOwner(射手)` 记上射手档位、档位随原版
+  同步字节送达客户端，飞行中按射手选的档位生成轨迹（近距离本地渲染；开启远距离显示时由服务端代发）；
+- **不需要编译期依赖 SRA**：白名单按实体注册名比对（`BuiltInRegistries.ENTITY_TYPE.getKey`），
+  没装该模组时匹配不到，等于本模组不介入；
+- **三叉戟等其它投掷物不变**：刻意不写成"凡箭矢基类且带档位就给"——原版三叉戟同样会经 `setOwner`
+  拿到档位，那样会把三叉戟也染上轨迹（属行为回归）。
+
 ## 环境
 
 | 项目 | 版本 |
