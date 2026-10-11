@@ -2,6 +2,8 @@ package com.enchantmentreforged.particle;
 
 import com.enchantmentreforged.config.ArrowParticleStyle;
 import com.enchantmentreforged.network.ParticlePreferences;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.projectile.AbstractArrow;
 import net.minecraft.core.particles.ParticleOptions;
@@ -9,6 +11,8 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.Vec3;
+
+import java.util.Set;
 
 /**
  * 箭矢粒子轨迹：服务端代发部分（"远距离显示"用）。
@@ -22,13 +26,28 @@ public final class ArrowParticleTrails {
 	private static final int PARTICLES_PER_TICK = 2;
 	/** 速度低于这个平方值视为"停下/插在方块上"，不再发粒子 */
 	private static final double MOVING_EPSILON = 1.0E-4D;
+	/** 额外允许显示箭矢轨迹的软兼容投掷物（按实体注册名比对，不需要编译期依赖对方模组） */
+	private static final Set<String> SOFT_ARROW_IDS = Set.of(
+			"summy-reliquary-apocrypha:new_testament_arrow");
 
 	private ArrowParticleTrails() {
 	}
 
-	/** 只作用于箭（含药水箭与光灵箭），三叉戟等其它投掷物不变 */
+	/**
+	 * 只作用于箭（含药水箭与光灵箭）与下面的软兼容白名单，三叉戟等其它投掷物不变。
+	 *
+	 * <p>白名单里目前是 Summy Reliquary: Apocrypha 的「落箭」：它同样继承 AbstractArrow、
+	 * 由玩家射出时会被 PersistentProjectileEntityMixin 记上射手档位，因此表现与原版箭矢完全一致。
+	 * 原版三叉戟（ThrownTrident）虽然也是 AbstractArrow，但**不在**名单里 ——
+	 * 保持"非箭类投掷物不介入"的既有口径。
+	 */
 	public static boolean isArrow(AbstractArrow arrow) {
-		return arrow.getType() == EntityType.ARROW || arrow.getType() == EntityType.SPECTRAL_ARROW;
+		EntityType<?> type = arrow.getType();
+		if (type == EntityType.ARROW || type == EntityType.SPECTRAL_ARROW) {
+			return true;
+		}
+		ResourceLocation key = BuiltInRegistries.ENTITY_TYPE.getKey(type);
+		return key != null && SOFT_ARROW_IDS.contains(key.toString());
 	}
 
 	/**
