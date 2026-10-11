@@ -60,18 +60,33 @@ SR 有两处自造的近战伤害（暗仪刺刀「遁入暗影」的两段斩�
   仅作编译期依赖；由于它是 Mojang 名、与 Yarn 的继承链对不上，`build.gradle` 里额外加了
   `-AdisableTargetValidator=true`（只关闭编译期目标校验，运行期仍由 Mixin 自己校验）。
 
-## 与「Summy Reliquary: Apocrypha」的箭矢粒子兼容
+## 箭矢粒子与其它模组的箭（1.3.5）
 
-ER 的箭矢轨迹原本只作用于原版两种箭（`ArrowParticleTrails#isArrow` 是实体类型白名单），SRA 的自定义落箭
-`summy-reliquary-apocrypha:new_testament_arrow` 会被直接跳过 —— 客户端本地渲染与服务端远距离代发
-走的是同一个判断。现在白名单扩成「原版两种箭 **或** 软兼容注册名列表」，SRA 的落箭已在列表里：
+箭矢轨迹只作用于"我们认可的箭"。判定集中在 `ArrowParticleTrails#isArrow` 一处，**客户端本地渲染与服务端
+远距离代发共用同一份判定**，优先级从高到低：
 
-- **表现与普通箭矢一致**：落箭同样继承原版箭矢基类，构造时经 `setOwner(射手)` 记上射手档位、档位随原版
-  同步字节送达客户端，飞行中按射手选的档位生成轨迹（近距离本地渲染；开启远距离显示时由服务端代发）；
-- **不需要编译期依赖 SRA**：白名单按实体注册名比对（`Registries.ENTITY_TYPE.getId`），
-  没装该模组时匹配不到，等于本模组不介入；
-- **三叉戟等其它投掷物不变**：刻意不写成"凡箭矢基类且带档位就给"——原版三叉戟同样会经 `setOwner`
-  拿到档位，那样会把三叉戟也染上轨迹（属行为回归）。
+1. **包含标签** `#enchantment_reforged:arrow_particles` 命中 → 一定介入（默认值 = `#minecraft:arrows` 实体标签 +
+   Summy Reliquary: Apocrypha 的落箭 `summy-reliquary-apocrypha:new_testament_arrow`，两项都带 `required:false`）；
+2. **排除标签** `#enchantment_reforged:no_arrow_particles` 命中 → 保持原版（整合包用它踢掉个别投掷物，例如某个模组的标枪）；
+3. **原版箭 / 光灵箭** → 恒定介入（写死在代码里：联机时客户端的标签会被服务器下发的标签包覆盖）；
+4. **代码内固定排除**：原版三叉戟（`TridentEntity`）与 `summy-reliquary:thrown_spear` → 不介入
+   （同样写死在代码里，标签丢失也不会误伤）；
+5. **其余继承箭矢基类的投掷物** → 由服务端开关 `arrow_particle_other_projectiles`（默认开）决定。
+
+于是 Quark 火把箭、匠魂3 的箭、冰火传说的龙箭这类"继承箭矢基类、但不是原版 `Arrow`"的模组箭会自动带上轨迹；
+它们本来就通过带射手的构造器/SR 的 `setOwner` 拿到了射手档位，之前只是被判定挡住了。
+
+同一份判定还额外做了两件事：
+
+- **档位补写（幂等）**：服务端在实体生成后的前 200 tick 内，若"这支箭还没有档位 + owner 是已登记档位的玩家"，
+  就补写一次射手档位 —— 覆盖"先 `new` 出实体、之后再 `setOwner(player)`"的自定义发射路径（Fabric 树原先只认
+  构造器继承，Forge 树在 `setOwner` 上打点，两边现在都兜住了）；
+- **整合包可直接扩展**：往 `data/<你的数据包>/tags/entity_types/arrow_particles.json` 里加实体 id 即可让某个投掷物
+  介入（可覆盖默认排除），加进 `no_arrow_particles.json` 即可让它恢复原版，改完 `/reload` 生效、不需要改代码。
+
+**已知边界**：本机制只覆盖继承箭矢基类（`AbstractArrow` / `PersistentProjectileEntity`）的投掷物 —— 档位载体
+接口就装在这个家族上。像 Iron's Spells 的 `AbstractMagicProjectile`、TaCZ 的子弹这类**自造投掷物基类**不在其中，
+本次不扩到 `Projectile` 基类；原版三叉戟与已知长矛类投掷物保持"非箭类投掷物不介入"的既有口径。
 
 ## 附魔一览（26 个）
 
@@ -515,3 +530,25 @@ Kilt 端实测"暗仪刺刀 × 附魔"的问题分两部分，这一版分别处
   其余目标成员全部是 intermediary 名。
 - 计数：配置项 79 → **80**（新增 `debug_sr_compat`，核心机制 7 → 8）；语言键中英各 296 → **298**；
   附魔（26）与网络协议（8）不变。产物：`enchantment-reforged-1.3.4.jar`（覆盖）。
+
+## 1.3.5 箭矢粒子兼容其它模组的箭（类兜底 + 双向标签 + 档位补写）
+
+**现象**：装了其它模组后，它们的箭没有 ER 的箭矢轨迹。**根因**：判定 `ArrowParticleTrails#isArrow` 是实体类型
+白名单（原版两箭 + 一个硬编码 id），而模组箭基本都 `extends AbstractArrow` 却**不是**原版 `Arrow`——
+实测你装包里的 Quark `TorchArrow`、匠魂3 `ModifiableArrow`、冰火传说 `EntityDragonArrow` 全部落在名单外，
+尽管它们早已把射手档位写进了箭本体。
+
+**改动**：判定改为"包含标签 → 排除标签 → 原版两箭 → 代码内固定排除（三叉戟 / `summy-reliquary:thrown_spear`）
+→ 其余继承箭矢基类的投掷物按开关"六级；新增实体标签 `#enchantment_reforged:arrow_particles`（默认含
+`#minecraft:arrows` 与 SRA 落箭）与 `#enchantment_reforged:no_arrow_particles`（默认空）；新增服务端开关
+`arrow_particle_other_projectiles`（默认开）；服务端增加一次**幂等档位补写**，覆盖"构造之后才 `setOwner`"的发射路径。
+详细口径与整合包扩展方式见上面的专节。
+
+**刻意不采用的方案**：用原版物品标签 `#minecraft:arrows` 做判据。虽然你装包里三个模组都登记了它，但它需要访问
+`AbstractArrow#getPickupItem()`（`protected`，得再加注入），且客户端侧该字段不保证有值；同等的可配置性由我们
+自己的两个实体标签提供，且不需要额外注入。
+
+**验证**：两树 `gradlew build` 通过（Forge 侧 `verifyMixinTargets` 27 个文件全绿）；无头 `runServer` 两轮
+（不装 SR / 装 deobf SR + Curios）都到 `Done`，日志出现 `Mixing PersistentProjectileEntityMixin … into AbstractArrow`，
+零注入失败、零标签报错；`run/` 已清理。计数：配置项 80 → **81**（粒子与特效 10 → 11）、中英语言键各 298 → **300**、
+数据文件 +2（两个标签）。产物：`enchantment-reforged-1.3.5.jar`（1.3.4 保留）。

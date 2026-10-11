@@ -1,6 +1,6 @@
 # Enchantment Reforged
 
-本仓库是 **Forge 1.20.1（47.4.10）** 的移植工程，功能与原 Fabric 工程（同版本号 1.3.4）一致；
+本仓库是 **Forge 1.20.1（47.4.10）** 的移植工程，功能与原 Fabric 工程（同版本号 1.3.5）一致；
 两份源码因 Yarn 与 Mojang 官方映射不同而独立维护。
 
 Minecraft **1.20.1** 的附魔与机制改造模组：重做锋利与力量、铁砧改消耗经验点数，新增 26 个附魔（含锋利Plus）与 9 组配置页；并可选兼容矛 [Backported Spears](https://www.mcmod.cn/class/23213.html)。作者：**Summy**。
@@ -13,7 +13,7 @@ Minecraft **1.20.1** 的附魔与机制改造模组：重做锋利与力量、�
 | 构建 | ForgeGradle 6 + MixinGradle 0.7.38 + MixinExtras 0.5.5（jar-in-jar）+ 官方映射 |
 | JDK | 17（`gradle.properties` / 全局 `~/.gradle/gradle.properties` 指定） |
 | 构建命令 | `gradlew build` |
-| 产物 | `JAR/enchantment-reforged-forge/enchantment-reforged-1.3.4-forge.jar` |
+| 产物 | `JAR/enchantment-reforged-forge/enchantment-reforged-1.3.5-forge.jar` |
 
 构建相关的三个本地化处理（都在 `build.gradle` 内，注释有说明）：
 
@@ -174,6 +174,23 @@ Kilt / Connector 环境实测"暗仪刺刀 × 附魔"的问题分两部分，这
   `Mixing SummyReliquaryShadowDashMixin … into com.summy.reliquary.effect.ShadowDash` 与
   `Mixing SummyReliquaryThrownSpearMixin … into com.summy.reliquary.entity.ThrownSpear`，零注入失败。
 
+### 1.3.5-forge 新增发布（箭矢粒子兼容其它模组的箭）
+
+**现象**：装了其它模组后，它们的箭没有 ER 的箭矢轨迹。**根因**：判定 `ArrowParticleTrails#isArrow` 是实体类型
+白名单（原版两箭 + 一个硬编码 id），而模组箭基本都 `extends AbstractArrow` 却**不是**原版 `Arrow`——
+实测 Ponder Time 装包里的 Quark `TorchArrow`、匠魂3 `ModifiableArrow`、冰火传说 `EntityDragonArrow` 全在名单外，
+尽管它们早已把射手档位写进了箭本体（本树在 `setOwner` 末尾继承）。
+
+**改动**：判定改为"包含标签 → 排除标签 → 原版两箭 → 代码内固定排除（`ThrownTrident` / `summy-reliquary:thrown_spear`）
+→ 其余继承箭矢基类的投掷物按开关"六级；新增实体标签 `#enchantment_reforged:arrow_particles`（默认含
+`#minecraft:arrows` 与 SRA 落箭）与 `#enchantment_reforged:no_arrow_particles`（默认空）；新增服务端开关
+`arrow_particle_other_projectiles`（默认开）；服务端增加一次**幂等档位补写**兜底。详细口径见上面的专节。
+
+**验证**：`gradlew build` 通过且 `verifyMixinTargets` 27 个文件全绿；无头 `runServer` 两轮（不装 SR / 装 deobf
+SR + Curios）都到 `Done`，日志出现 `Mixing PersistentProjectileEntityMixin … into AbstractArrow`，零注入失败、
+零标签报错。计数：配置项 80 → **81**（粒子与特效 10 → 11）、中英语言键各 298 → **300**、数据文件 +2。
+产物：`enchantment-reforged-1.3.5-forge.jar`（1.3.4-forge 保留）。
+
 ### 与「Summy Reliquary」的近战兼容
 
 SR 有两处自造的近战伤害（暗仪刺刀「遁入暗影」的两段斩击、投掷长矛命中），它们直接调
@@ -210,18 +227,30 @@ SR 有两处自造的近战伤害（暗仪刺刀「遁入暗影」的两段斩�
 3. **Curios 的 jar 不入库**（`.gitignore` 里忽略 `libs/curios-*.jar`）：`build.gradle` 里那段
    deobf 配置包在 `if (file(...).exists())` 里，本地没有 Curios 时整条链路不启用，不影响正常构建。
 
-### 与「Summy Reliquary: Apocrypha」的箭矢粒子兼容
+### 箭矢粒子与其它模组的箭（1.3.5-forge）
 
-ER 的箭矢轨迹原本只作用于原版两种箭（`ArrowParticleTrails#isArrow` 是实体类型白名单），SRA 的自定义落箭
-`summy-reliquary-apocrypha:new_testament_arrow` 会被直接跳过 —— 客户端本地渲染与服务端远距离代发
-走的是同一个判断。现在白名单扩成「原版两种箭 **或** 软兼容注册名列表」，SRA 的落箭已在列表里：
+箭矢轨迹只作用于"我们认可的箭"。判定集中在 `ArrowParticleTrails#isArrow` 一处，**客户端本地渲染与服务端
+远距离代发共用同一份判定**，优先级从高到低：
 
-- **表现与普通箭矢一致**：落箭同样继承原版箭矢基类，构造时经 `setOwner(射手)` 记上射手档位、档位随原版
-  同步字节送达客户端，飞行中按射手选的档位生成轨迹（近距离本地渲染；开启远距离显示时由服务端代发）；
-- **不需要编译期依赖 SRA**：白名单按实体注册名比对（`BuiltInRegistries.ENTITY_TYPE.getKey`），
-  没装该模组时匹配不到，等于本模组不介入；
-- **三叉戟等其它投掷物不变**：刻意不写成"凡箭矢基类且带档位就给"——原版三叉戟同样会经 `setOwner`
-  拿到档位，那样会把三叉戟也染上轨迹（属行为回归）。
+1. **包含标签** `#enchantment_reforged:arrow_particles` 命中 → 一定介入（默认值 = `#minecraft:arrows` 实体标签 +
+   Summy Reliquary: Apocrypha 的落箭 `summy-reliquary-apocrypha:new_testament_arrow`，两项都带 `required:false`）；
+2. **排除标签** `#enchantment_reforged:no_arrow_particles` 命中 → 保持原版（整合包用它踢掉个别投掷物）；
+3. **原版箭 / 光灵箭** → 恒定介入（写在代码里：联机时客户端标签会被服务器下发的标签包覆盖）；
+4. **代码内固定排除**：原版三叉戟（`ThrownTrident`）与 `summy-reliquary:thrown_spear` → 不介入（同样不依赖标签）；
+5. **其余继承箭矢基类的投掷物** → 由服务端开关 `arrow_particle_other_projectiles`（默认开）决定。
+
+于是 Quark 火把箭、匠魂3 的箭、冰火传说的龙箭这类"继承箭矢基类、但不是原版 `Arrow`"的模组箭会自动带上轨迹；
+档位仍由射手决定（本树在 `setOwner` 上继承）。
+
+另外两处配套：
+
+- **档位补写（幂等）**：服务端在实体生成后的前 200 tick 内，若"这支箭还没有档位 + owner 是已登记档位的玩家"，
+  就补写一次射手档位，兜住 owner 在构造阶段还是 null、或射手档位当时尚未上报的情况；
+- **整合包可直接扩展**：往 `data/<你的数据包>/tags/entity_types/arrow_particles.json` 加实体 id 即可让某投掷物
+  介入（可覆盖默认排除），加进 `no_arrow_particles.json` 即可恢复原版，改完 `/reload` 生效。
+
+**已知边界**：只覆盖继承箭矢基类（`AbstractArrow`）的投掷物——档位载体接口装在这个家族上；Iron's Spells 的
+`AbstractMagicProjectile`、TaCZ 子弹这类自造投掷物基类不在其中，本次不扩到 `Projectile` 基类。
 
 ## 环境
 

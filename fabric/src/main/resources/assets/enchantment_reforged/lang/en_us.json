@@ -230,6 +230,8 @@
   "text.enchantment_reforged.option.arrow_particle_long_distance.tooltip": "Keeps the trail visible beyond the entity sync range (64 blocks); the server sends the particles; player-shot arrows only",
   "text.enchantment_reforged.option.arrow_particle_distance": "Arrow particle distance",
   "text.enchantment_reforged.option.arrow_particle_distance.tooltip": "Radius of the long distance mode in blocks, default 128, max 512",
+  "text.enchantment_reforged.option.arrow_particle_other_projectiles": "Arrow particles on other mods' arrows",
+  "text.enchantment_reforged.option.arrow_particle_other_projectiles.tooltip": "Also trail other mods' arrows (anything extending the arrow base); tridents and spears stay untouched, adjustable via datapack tags",
   "text.enchantment_reforged.option.melee_particle": "Melee particle (crit)",
   "text.enchantment_reforged.option.melee_particle.tooltip": "Particle for normal and critical melee hits; each player picks their own and others see it; player melee only; 0 keeps vanilla",
   "text.enchantment_reforged.option.melee_sweep_particle": "Melee particle (sweep)",

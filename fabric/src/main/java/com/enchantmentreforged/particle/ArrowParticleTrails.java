@@ -1,11 +1,15 @@
 package com.enchantmentreforged.particle;
 
 import com.enchantmentreforged.config.ArrowParticleStyle;
+import com.enchantmentreforged.config.EnchantmentReforgedConfig;
 import com.enchantmentreforged.network.ParticlePreferences;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.projectile.PersistentProjectileEntity;
+import net.minecraft.entity.projectile.TridentEntity;
 import net.minecraft.particle.ParticleEffect;
 import net.minecraft.registry.Registries;
+import net.minecraft.registry.RegistryKeys;
+import net.minecraft.registry.tag.TagKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -26,28 +30,63 @@ public final class ArrowParticleTrails {
 	private static final int PARTICLES_PER_TICK = 2;
 	/** 速度低于这个平方值视为"停下/插在方块上"，不再发粒子 */
 	private static final double MOVING_EPSILON = 1.0E-4D;
-	/** 额外允许显示箭矢轨迹的软兼容投掷物（按实体注册名比对，不需要编译期依赖对方模组） */
-	private static final Set<String> SOFT_ARROW_IDS = Set.of(
-			"summy-reliquary-apocrypha:new_testament_arrow");
+
+	/** 包含标签：命中就一定接手（整合包/模组可以把自己"不是继承箭基类"的投掷物登记进来，也能把默认被排除的加回来） */
+	private static final TagKey<EntityType<?>> INCLUDE_TAG = TagKey.of(RegistryKeys.ENTITY_TYPE,
+			new Identifier("enchantment_reforged", "arrow_particles"));
+	/** 排除标签：命中就保持原版（整合包用它踢掉个别投掷物，例如某个模组的标枪） */
+	private static final TagKey<EntityType<?>> EXCLUDE_TAG = TagKey.of(RegistryKeys.ENTITY_TYPE,
+			new Identifier("enchantment_reforged", "no_arrow_particles"));
+	/**
+	 * 代码内固定排除的实体 id（不依赖标签）。
+	 *
+	 * <p>联机时客户端的数据包标签会被服务器下发的标签包整体覆盖，所以"我们本来就不想要的投掷物"
+	 * 必须写在代码里才不会因为标签丢失而误伤；想反悔时把它们写进包含标签即可。
+	 */
+	private static final Set<String> ALWAYS_EXCLUDED_IDS = Set.of(
+			"summy-reliquary:thrown_spear");
 
 	private ArrowParticleTrails() {
 	}
 
 	/**
-	 * 只作用于箭（含药水箭与光灵箭）与下面的软兼容白名单，三叉戟等其它投掷物不变。
+	 * 这支投掷物是否算"箭"（决定是否生成我们配置的轨迹粒子、以及是否屏蔽原版箭类粒子）。
 	 *
-	 * <p>白名单里目前是 Summy Reliquary: Apocrypha 的「落箭」：它同样继承 PersistentProjectileEntity、
-	 * 由玩家射出时会被 PersistentProjectileEntityMixin 记上射手档位，因此表现与原版箭矢完全一致。
-	 * 原版三叉戟（TridentEntity）虽然同属该类，但**不在**名单里 ——
-	 * 保持"非箭类投掷物不介入"的既有口径。
+	 * <p>判定优先级（1.3.5 起）：
+	 * <ol>
+	 *     <li>不是 {@code PersistentProjectileEntity} 家族的实体：本方法进不来，等同不介入；</li>
+	 *     <li>命中包含标签 {@code #enchantment_reforged:arrow_particles} → 介入（可把默认排除的实体加回来）；</li>
+	 *     <li>命中排除标签 {@code #enchantment_reforged:no_arrow_particles} → 不介入；</li>
+	 *     <li>原版箭 / 光灵箭 → 介入（写死在代码里：联机时客户端标签会被服务器覆盖）；</li>
+	 *     <li>代码内固定排除：原版三叉戟与 {@link #ALWAYS_EXCLUDED_IDS} 里的长矛类投掷物 → 不介入；</li>
+	 *     <li>其余（Quark 火把箭、匠魂箭、冰火龙箭这类"继承箭基类但不是原版 Arrow"的模组箭）
+	 *     → 由 {@code arrow_particle_other_projectiles} 开关决定，默认介入。</li>
+	 * </ol>
 	 */
 	public static boolean isArrow(PersistentProjectileEntity arrow) {
 		EntityType<?> type = arrow.getType();
+		// 1) 包含标签优先：显式登记的一律介入
+		if (type.isIn(INCLUDE_TAG)) {
+			return true;
+		}
+		// 2) 排除标签：整合包显式踢掉的保持原版
+		if (type.isIn(EXCLUDE_TAG)) {
+			return false;
+		}
+		// 3) 原版两箭恒定介入
 		if (type == EntityType.ARROW || type == EntityType.SPECTRAL_ARROW) {
 			return true;
 		}
+		// 4) 代码内固定排除：原版三叉戟与已知长矛类投掷物
+		if (arrow instanceof TridentEntity) {
+			return false;
+		}
 		Identifier key = Registries.ENTITY_TYPE.getId(type);
-		return key != null && SOFT_ARROW_IDS.contains(key.toString());
+		if (key != null && ALWAYS_EXCLUDED_IDS.contains(key.toString())) {
+			return false;
+		}
+		// 5) 宽松兜底：参数类型本身就是"箭基类家族"，于是模组箭（继承该类但不是原版 Arrow）也能吃上
+		return EnchantmentReforgedConfig.get().arrowParticleOtherProjectiles;
 	}
 
 	/**

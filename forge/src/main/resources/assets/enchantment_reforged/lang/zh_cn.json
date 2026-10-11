@@ -230,6 +230,8 @@
   "text.enchantment_reforged.option.arrow_particle_long_distance.tooltip": "超出实体同步范围（64 格）也能看到轨迹，由服务端代发；同样只对玩家射出的箭生效",
   "text.enchantment_reforged.option.arrow_particle_distance": "箭矢粒子距离",
   "text.enchantment_reforged.option.arrow_particle_distance.tooltip": "远距离显示的作用半径（格），默认 128，最大 512",
+  "text.enchantment_reforged.option.arrow_particle_other_projectiles": "箭矢粒子 作用于其它模组投掷物",
+  "text.enchantment_reforged.option.arrow_particle_other_projectiles.tooltip": "开启后其它模组的箭（继承箭基类即可）也带轨迹；三叉戟与长矛类仍不介入，可用数据包标签增删",
   "text.enchantment_reforged.option.melee_particle": "近战粒子 暴击",
   "text.enchantment_reforged.option.melee_particle.tooltip": "普通与暴击命中的粒子，每名玩家各自设置并能被其他玩家看到；只对玩家近战生效，0 为原版",
   "text.enchantment_reforged.option.melee_sweep_particle": "近战粒子 横扫",

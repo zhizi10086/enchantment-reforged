@@ -13,6 +13,7 @@ import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.data.TrackedData;
 import net.minecraft.entity.projectile.PersistentProjectileEntity;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.hit.EntityHitResult;
 import net.minecraft.world.World;
 import org.spongepowered.asm.mixin.Final;
@@ -108,6 +109,34 @@ public abstract class PersistentProjectileEntityMixin implements ArrowParticleCa
 	@Inject(method = "tick", at = @At("TAIL"))
 	private void enchantmentReforged$serverParticleTrail(CallbackInfo ci) {
 		ArrowParticleTrails.tickServerTrail((PersistentProjectileEntity) (Object) this);
+	}
+
+	/**
+	 * 档位补写（1.3.5）：覆盖"先构造出实体、之后才 {@code setOwner(player)}"的自定义发射路径。
+	 *
+	 * <p>本树原本只在构造器末尾继承档位，所以那条路径上的箭不携带档位、整条粒子链路都不介入。
+	 * 这里在服务端前 200 tick 内做一次幂等补写：箭类 + 档位仍未知 + owner 是已登记档位的玩家 → 写入一次。
+	 * 写入后 {@code getParticleStyle() != UNSET}，后续 tick 自然短路。
+	 */
+	@Inject(method = "tick", at = @At("HEAD"))
+	private void enchantmentReforged$backfillShooterStyle(CallbackInfo ci) {
+		PersistentProjectileEntity self = (PersistentProjectileEntity) (Object) this;
+		if (self.getWorld().isClient || self.age > 200) {
+			return;
+		}
+		if (enchantmentReforged$getParticleStyle() != ArrowParticleStyle.UNSET) {
+			return;
+		}
+		if (!(self.getOwner() instanceof ServerPlayerEntity shooter)) {
+			return;
+		}
+		if (!ArrowParticleTrails.isArrow(self)) {
+			return;
+		}
+		int style = ParticlePreferences.styleOf(shooter.getUuid());
+		if (style != ArrowParticleStyle.UNSET) {
+			enchantmentReforged$setParticleStyle(style);
+		}
 	}
 
 	/**

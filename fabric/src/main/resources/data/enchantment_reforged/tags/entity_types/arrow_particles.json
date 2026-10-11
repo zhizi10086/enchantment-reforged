@@ -1,0 +1,13 @@
+{
+  "replace": false,
+  "values": [
+    {
+      "id": "#minecraft:arrows",
+      "required": false
+    },
+    {
+      "id": "summy-reliquary-apocrypha:new_testament_arrow",
+      "required": false
+    }
+  ]
+}

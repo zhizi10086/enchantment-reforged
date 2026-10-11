@@ -157,6 +157,14 @@ public final class EnchantmentReforgedConfig {
 	public boolean arrowParticleLongDistance = false;
 	/** 远距离显示的作用半径（格），上限 512（原版强制发粒子的硬上限） */
 	public int arrowParticleDistance = 128;
+	/**
+	 * 箭矢粒子是否也作用于其它模组的箭（1.3.5）。
+	 *
+	 * <p>开（默认）：一切以箭基类为基础、且不在排除标签与代码内排除名单里的投掷物都算箭
+	 * （Quark 火把箭、匠魂箭、冰火龙箭这类"继承箭基类但不是原版 Arrow"的模组箭由此覆盖）；
+	 * 关：退回"原版两箭 + 包含标签"的保守口径。
+	 */
+	public boolean arrowParticleOtherProjectiles = true;
 	/** 近战粒子的档位（普通/暴击命中；0 = 原版默认，1 = 无粒子并屏蔽暴击星，2~12 = 原版粒子） */
 	public int meleeParticle = 0;
 	/** 横扫粒子的档位（0 = 原版默认，1 = 无粒子并屏蔽原版横扫弧线，2~12 = 原版粒子） */
@@ -515,6 +523,9 @@ public final class EnchantmentReforgedConfig {
 				0.0D, 1.0D, 1.0D, 0.0D, Scope.CLIENT),
 		ARROW_PARTICLE_DISTANCE(Category.PARTICLES, "arrow_particle_distance", Kind.INTEGER,
 				16.0D, 512.0D, 16.0D, 128.0D, Scope.CLIENT),
+		// 服务端作用域：是否把其它模组的箭也算作"箭"（两种判定在两端必须一致）
+		ARROW_PARTICLE_OTHER_PROJECTILES(Category.PARTICLES, "arrow_particle_other_projectiles", Kind.BOOLEAN,
+				0.0D, 1.0D, 1.0D, 1.0D),
 		MELEE_PARTICLE(Category.PARTICLES, "melee_particle", Kind.ENUM, 0.0D, 12.0D, 1.0D, 0.0D, Scope.CLIENT),
 		MELEE_SWEEP_PARTICLE(Category.PARTICLES, "melee_sweep_particle", Kind.ENUM,
 				0.0D, 12.0D, 1.0D, 0.0D, Scope.CLIENT),
@@ -696,6 +707,7 @@ public final class EnchantmentReforgedConfig {
 				case ARROW_PARTICLE -> config.arrowParticle;
 				case ARROW_PARTICLE_LONG_DISTANCE -> config.arrowParticleLongDistance ? 1.0D : 0.0D;
 				case ARROW_PARTICLE_DISTANCE -> config.arrowParticleDistance;
+				case ARROW_PARTICLE_OTHER_PROJECTILES -> config.arrowParticleOtherProjectiles ? 1.0D : 0.0D;
 				case MELEE_PARTICLE -> config.meleeParticle;
 				case MELEE_SWEEP_PARTICLE -> config.meleeSweepParticle;
 				case MELEE_PARTICLE_EFFECT -> config.meleeParticleEffect;
@@ -787,6 +799,7 @@ public final class EnchantmentReforgedConfig {
 				case ARROW_PARTICLE -> config.arrowParticle = (int) Math.round(clamped);
 				case ARROW_PARTICLE_LONG_DISTANCE -> config.arrowParticleLongDistance = clamped >= 0.5D;
 				case ARROW_PARTICLE_DISTANCE -> config.arrowParticleDistance = (int) Math.round(clamped);
+				case ARROW_PARTICLE_OTHER_PROJECTILES -> config.arrowParticleOtherProjectiles = clamped >= 0.5D;
 				case MELEE_PARTICLE -> config.meleeParticle = (int) Math.round(clamped);
 				case MELEE_SWEEP_PARTICLE -> config.meleeSweepParticle = (int) Math.round(clamped);
 				case MELEE_PARTICLE_EFFECT -> config.meleeParticleEffect = (int) Math.round(clamped);
