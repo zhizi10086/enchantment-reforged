@@ -1299,14 +1299,27 @@ public final class EnchantmentEffects {
 	// ==================== 灵动步伐 ====================
 
 	/**
+	 * 「不可闪避」的伤害类型标签（{@code #enchantment_reforged:no_dodge}）。
+	 *
+	 * <p>整合包或附属模组把某个伤害类型加进这个标签，它就会**完全跳过**闪避判定 ——
+	 * 例如 Summy Reliquary: Apocrypha 的「元素伤害」按需求"无视闪避"，就是挂在这个标签上的。
+	 */
+	private static final net.minecraft.tags.TagKey<DamageType> NO_DODGE_TAG = net.minecraft.tags.TagKey.create(
+			Registries.DAMAGE_TYPE, new ResourceLocation("enchantment_reforged", "no_dodge"));
+
+	/**
 	 * 灵动步伐：按几率完全无效化这次伤害。
 	 *
-	 * <p>没有来源限制（虚空、指令同样可以闪避），也没有内置冷却；闪避时按被攻击者
+	 * <p>除「不可闪避」标签（见 {@link #NO_DODGE_TAG}）之外没有来源限制（虚空、指令同样可以闪避），
+	 * 也没有内置冷却；闪避时按被攻击者
 	 * 自己设置的档位播一声音效（0 = 关闭）。
 	 *
 	 * @return true 表示这次伤害被闪避掉
 	 */
-	public static boolean rollNimbleSteps(LivingEntity victim) {
+	public static boolean rollNimbleSteps(LivingEntity victim, DamageSource source) {
+		if (source != null && source.is(NO_DODGE_TAG)) {
+			return false;
+		}
 		EnchantmentReforgedConfig config = EnchantmentReforgedConfig.get();
 		if (!config.enableNimbleSteps || ModEnchantments.NIMBLE_STEPS == null || victim.tickCount <= 0) {
 			return false;

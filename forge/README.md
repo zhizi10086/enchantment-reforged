@@ -252,6 +252,18 @@ SR 有两处自造的近战伤害（暗仪刺刀「遁入暗影」的两段斩�
 **已知边界**：只覆盖继承箭矢基类（`AbstractArrow`）的投掷物——档位载体接口装在这个家族上；Iron's Spells 的
 `AbstractMagicProjectile`、TaCZ 子弹这类自造投掷物基类不在其中，本次不扩到 `Projectile` 基类。
 
+### 不可闪避的伤害类型（`#enchantment_reforged:no_dodge`）
+
+「灵动步伐」原本对所有伤害来源一视同仁地掷点（虚空、指令同样可以闪避）。现在多了一层**伤害类型标签豁免**：
+
+- 判定点在 `EnchantmentEffects#rollNimbleSteps(LivingEntity, DamageSource)`，**第一步**就检查
+  `source.isIn(#enchantment_reforged:no_dodge)` —— 命中就直接返回"未闪避"，连配置与附魔等级都不查；
+- 需要"完全无法被闪避"的伤害（例如**元素伤害**这类按设定必须落地的效果）由**提供方**把自己的伤害类型
+  加进 `data/<你的数据包>/tags/damage_type/no_dodge.json` 即可，`/reload` 生效、不需要改本模组代码；
+- 该判断**只在伤害事件里执行一次**，命中标签时也不会播放闪避音效、不消耗任何随机数。
+
+Summy Reliquary: Apocrypha 的 `summy-reliquary-apocrypha:apoptosis_element`（凋亡的元素伤害）就是第一个使用者。
+
 ## 环境
 
 | 项目 | 版本 |

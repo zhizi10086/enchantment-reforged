@@ -88,6 +88,18 @@ SR 有两处自造的近战伤害（暗仪刺刀「遁入暗影」的两段斩�
 接口就装在这个家族上。像 Iron's Spells 的 `AbstractMagicProjectile`、TaCZ 的子弹这类**自造投掷物基类**不在其中，
 本次不扩到 `Projectile` 基类；原版三叉戟与已知长矛类投掷物保持"非箭类投掷物不介入"的既有口径。
 
+## 不可闪避的伤害类型（`#enchantment_reforged:no_dodge`）
+
+「灵动步伐」原本对所有伤害来源一视同仁地掷点（虚空、指令同样可以闪避）。现在多了一层**伤害类型标签豁免**：
+
+- 判定点在 `EnchantmentEffects#rollNimbleSteps(LivingEntity, DamageSource)`，**第一步**就检查
+  `source.isIn(#enchantment_reforged:no_dodge)` —— 命中就直接返回"未闪避"，连配置与附魔等级都不查；
+- 需要"完全无法被闪避"的伤害（例如**元素伤害**这类按设定必须落地的效果）由**提供方**把自己的伤害类型
+  加进 `data/<你的数据包>/tags/damage_type/no_dodge.json` 即可，`/reload` 生效、不需要改本模组代码；
+- 该判断**只在伤害事件里执行一次**，命中标签时也不会播放闪避音效、不消耗任何随机数。
+
+Summy Reliquary: Apocrypha 的 `summy-reliquary-apocrypha:apoptosis_element`（凋亡的元素伤害）就是第一个使用者。
+
 ## 附魔一览（26 个）
 
 下表是当前全部 26 个附魔的速览（"目标 / 上限"一栏照注册代码写死，具体数值仍以配置为准）；

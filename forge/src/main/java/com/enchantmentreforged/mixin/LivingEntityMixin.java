@@ -43,7 +43,7 @@ public abstract class LivingEntityMixin {
 	private void enchantmentReforged$nimbleStepsDodge(DamageSource source, float amount,
 			CallbackInfoReturnable<Boolean> cir) {
 		LivingEntity self = (LivingEntity) (Object) this;
-		if (EnchantmentEffects.rollNimbleSteps(self)) {
+		if (EnchantmentEffects.rollNimbleSteps(self, source)) {
 			cir.setReturnValue(false);
 		}
 	}
