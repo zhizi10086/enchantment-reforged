@@ -1,6 +1,6 @@
 # Enchantment Reforged
 
-本仓库是 **Forge 1.20.1（47.4.10）** 的移植工程，功能与原 Fabric 工程（同版本号 1.3.5）一致；
+本仓库是 **Forge 1.20.1（47.4.10）** 的移植工程，功能与原 Fabric 工程（同版本号 1.3.6）一致；
 两份源码因 Yarn 与 Mojang 官方映射不同而独立维护。
 
 Minecraft **1.20.1** 的附魔与机制改造模组：重做锋利与力量、铁砧改消耗经验点数，新增 26 个附魔（含锋利Plus）与 9 组配置页；并可选兼容矛 [Backported Spears](https://www.mcmod.cn/class/23213.html)。作者：**Summy**。
@@ -13,7 +13,7 @@ Minecraft **1.20.1** 的附魔与机制改造模组：重做锋利与力量、�
 | 构建 | ForgeGradle 6 + MixinGradle 0.7.38 + MixinExtras 0.5.5（jar-in-jar）+ 官方映射 |
 | JDK | 17（`gradle.properties` / 全局 `~/.gradle/gradle.properties` 指定） |
 | 构建命令 | `gradlew build` |
-| 产物 | `JAR/enchantment-reforged-forge/enchantment-reforged-1.3.5-forge.jar` |
+| 产物 | `JAR/enchantment-reforged-forge/enchantment-reforged-1.3.6-forge.jar` |
 
 构建相关的三个本地化处理（都在 `build.gradle` 内，注释有说明）：
 
@@ -174,6 +174,34 @@ Kilt / Connector 环境实测"暗仪刺刀 × 附魔"的问题分两部分，这
   `Mixing SummyReliquaryShadowDashMixin … into com.summy.reliquary.effect.ShadowDash` 与
   `Mixing SummyReliquaryThrownSpearMixin … into com.summy.reliquary.entity.ThrownSpear`，零注入失败。
 
+### 1.3.6-forge 新增发布（弓弩附魔互通：弓兼容「多重射击 / 穿透」）
+
+**目标**：让弓能附上原版弩的**多重射击 / 穿透**，而且**真的生效**。
+
+**已核实的事实**：1.20.1 里穿透写在 `CrossbowItem#getArrow`（读 `Enchantments.PIERCING` 后调
+`AbstractArrow#setPierceLevel(byte)`，公开 API），多重射击写在 `CrossbowItem#performShooting`（生成 ±10°，
+ER 早前已把这两个常量改成配置项 `multishot_spread_degrees`），而 `BowItem#releaseUsing` 里**完全没有**这两段逻辑。
+
+**改动**：
+
+- **开关共用**：复用 `enable_crossbow_compat`，语义扩为**弓弩附魔互通**（键名保留以免旧配置迁移）：开 = 弩收弓附魔 +
+  弓收多重射击/穿透；关 = 两侧同时失效。
+- **可用性**：扩展现有 `EnchantmentMixin#canEnchant` 注入，弓 + `MULTISHOT`/`PIERCING` 放行；两者互斥沿用原版
+  `MultiShotEnchantment#checkCompatibility`。
+- **多重射击（弓）**：主箭仍由原版弓逻辑射出；随后生成左右各一支，方向**逐字复刻原版弩**——
+  `getViewVector(1.0F)` 用四元数绕 `getUpVector(1.0F)` 旋转 ±`multishot_spread_degrees`，再
+  `Projectile#shoot(dirX, dirY, dirZ, 主箭速度, 弓散布)`；额外箭为主箭副本（伤害/暴击/击退/穿透/着火/药水效果/粒子档位一致），
+  速度取主箭因此疾矢倍率自动带上；三支是否都能命中沿用 `enable_multishot_all_hit`。
+- **穿透（弓）**：按等级写原版穿透字段（先写再生成额外箭，靠 NBT 复制继承），上限 4 级不变。
+- **弹药**：刻意保持"固定射 3 支、只消耗 1 支"，无限/无尽箭袋/创造照旧免耗；额外箭 `Pickup.DISALLOWED`。
+- **额外箭归属修复**：`AbstractArrow` 的存档字段不含 owner，此前额外箭击杀不计入玩家；现在复制后显式
+  `setOwner(原箭的 owner)`，幻影箭与多重射击额外箭的击杀都正常归功于射手（经验/抢夺恢复）。
+
+**验证**：`gradlew build` 通过且 `verifyMixinTargets` 27 个文件全绿；无头 `runServer` 两轮（不装 SR / 装 deobf
+SR + Curios）都到 `Done`，日志出现 `Mixing BowItemMixin … into BowItem`、`Mixing CrossbowItemMixin …`、
+`Mixing EnchantmentMixin …`，零注入失败。计数：配置项仍 **81**、中英语言键各仍 **300**（只改两条文案）。
+产物：`enchantment-reforged-1.3.6-forge.jar`（1.3.5-forge 保留）。
+
 ### 1.3.5-forge 新增发布（箭矢粒子兼容其它模组的箭）
 
 **现象**：装了其它模组后，它们的箭没有 ER 的箭矢轨迹。**根因**：判定 `ArrowParticleTrails#isArrow` 是实体类型
@@ -331,7 +359,9 @@ Summy Reliquary: Apocrypha 的 `summy-reliquary-apocrypha:apoptosis_element`（�
 - **保护 5 级**：铁砧两个保护 IV → V（`enable_protection_level_5`）。
 - **穿刺改基岩版判定**：目标接触水或淋雨时生效；泡在水里又乘船时无效（`enable_impaling_bedrock_rule`）。
 - **无限 + 经验修补共存**：同一件物品可以同时有这两个附魔（`enable_infinity_mending`）。
-- **弩兼容弓附魔**：力量/无限/火矢/冲击可以附到弩上并正常生效，带无限时装填不消耗箭（`enable_crossbow_compat`）。
+- **弓弩附魔互通**（`enable_crossbow_compat`，1.3.6 起双向）：弩可以附力量/无限/火矢/冲击并正常生效（带无限时装填不消耗箭）；
+  弓可以附原版弩的**多重射击 / 穿透**并真正生效——一次射 3 支（方向按原版弩的数学、散射角读 `multishot_spread_degrees`）、
+  穿透按等级真的穿透。关掉开关则两侧同时失效。
 - **忠诚改版**：投掷保留本体、以"假三叉戟"代替，返回前不能再次投掷（`enable_loyalty_rework`）。
 
 ## 创造模式物品页与附魔书说明
@@ -378,8 +408,9 @@ Summy Reliquary: Apocrypha 的 `summy-reliquary-apocrypha:apoptosis_element`（�
 - `BlockMixin`：`dropStacks` 换成熔炉产物（潜行跳过）。
 - `AnvilScreenHandlerMixin` + `AnvilScreenMixin`：成本换算成经验点数、按点数判定与扣费、两处 40 级截断失效。
 - `ExperienceOrbEntityMixin`：经验球给经验的那一次调用按经验学者放大。
-- `EnchantmentMixin`：锋利Plus↔原版锋利、自动熔炼↔精准采集的互斥、"原版锋利退出随机池"，以及"弩兼容弓附魔""无限+经验修补"的放行。
+- `EnchantmentMixin`：锋利Plus↔原版锋利、自动熔炼↔精准采集的互斥、"原版锋利退出随机池"，以及"弓弩附魔互通"（弩收弓附魔、弓收多重射击/穿透）与"无限+经验修补"的放行。
 - `CrossbowItemMixin`：弩箭生成后按弩上的力量/火矢/冲击写属性，带无限时装填不耗箭。
+- `BowItemMixin`：主箭生成后按弓上的穿透写原版穿透字段；带多重射击时再补左右各一支（方向按原版弩的四元数旋转、速度取主箭、散布读弓散布配置），并给三支各自按 `enable_multishot_all_hit` 决定是否"保证生效"。
 - `TridentEntityMixin` + `PlayerEntityMixin`：三叉戟近战与投掷的穿刺按"接触水或淋雨"判定（替换生物类型复用原版加成）；投掷命中补上魔剑/嗜血；承载"假三叉戟"标记（飞回只消失不复制）。
 - `TridentItemMixin`：忠诚改版——投掷不取走本体、给飞出去的打上假三叉戟标记、有忠诚三叉戟在飞时拒绝再次投掷。
 - 事件：斩首用 `AFTER_DEATH`；本能释放用服务端/客户端 tick。

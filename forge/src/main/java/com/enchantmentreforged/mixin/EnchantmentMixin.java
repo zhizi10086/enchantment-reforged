@@ -60,16 +60,31 @@ public abstract class EnchantmentMixin {
 		}
 	}
 
-	/** 弩兼容：让原版弓的四个附魔（力量/无限/火矢/冲击）可以附到弩上 */
+	/**
+	 * 弓弩附魔互通（共用开关 {@code enable_crossbow_compat}，1.3.6 起双向）：
+	 *
+	 * <ul>
+	 *     <li>弩 ← 原版弓的四个附魔（力量 / 无限 / 火矢 / 冲击）；</li>
+	 *     <li>弓 ← 原版弩的两个附魔（多重射击 / 穿透）。</li>
+	 * </ul>
+	 *
+	 * <p>行为侧由 {@code CrossbowItemMixin}（弩）与 {@code BowItemMixin}（弓）实现；这里只管"能不能附"，
+	 * 附魔台、铁砧、命令与创造书都会走这个判定。开关关闭时两侧同时失效。
+	 */
 	@Inject(method = "canEnchant(Lnet/minecraft/world/item/ItemStack;)Z", at = @At("HEAD"), cancellable = true)
-	private void enchantmentReforged$allowCrossbow(ItemStack stack, CallbackInfoReturnable<Boolean> cir) {
+	private void enchantmentReforged$allowBowCrossbowExchange(ItemStack stack, CallbackInfoReturnable<Boolean> cir) {
 		EnchantmentReforgedConfig config = EnchantmentReforgedConfig.get();
-		if (!config.enableCrossbowCompat || !stack.is(Items.CROSSBOW)) {
+		if (!config.enableCrossbowCompat) {
 			return;
 		}
 		Enchantment self = (Enchantment) (Object) this;
-		if (self == Enchantments.POWER_ARROWS || self == Enchantments.INFINITY_ARROWS
-				|| self == Enchantments.FLAMING_ARROWS || self == Enchantments.PUNCH_ARROWS) {
+		if (stack.is(Items.CROSSBOW) && (self == Enchantments.POWER_ARROWS || self == Enchantments.INFINITY_ARROWS
+				|| self == Enchantments.FLAMING_ARROWS || self == Enchantments.PUNCH_ARROWS)) {
+			cir.setReturnValue(true);
+			return;
+		}
+		// 弓：原版弩的多重射击与穿透（1.3.6）；两者互斥由原版 MultiShotEnchantment#checkCompatibility 保证
+		if (stack.is(Items.BOW) && (self == Enchantments.MULTISHOT || self == Enchantments.PIERCING)) {
 			cir.setReturnValue(true);
 		}
 	}

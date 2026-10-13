@@ -129,7 +129,12 @@ public abstract class BowItemMixin {
 		return level;
 	}
 
-	/** 幻影箭：主箭生成后按几率再生成一支同款箭（并给主箭打上"保证生效"标记） */
+	/**
+	 * 主箭生成后的追加处理：弩的两个附魔（穿透 / 多重射击，1.3.6 起）与幻影箭。
+	 *
+	 * <p>挂在原有的实体生成包装点上——此处主箭的附魔（力量/火矢/冲击/暴击/疾矢）都已应用完毕，
+	 * 因此额外箭靠 NBT 复制就能与原箭表现一致。
+	 */
 	@WrapOperation(
 			method = "onStoppedUsing",
 			at = @At(
@@ -137,16 +142,59 @@ public abstract class BowItemMixin {
 					target = "Lnet/minecraft/world/World;spawnEntity(Lnet/minecraft/entity/Entity;)Z"
 			)
 	)
-	private boolean enchantmentReforged$spawnPhantomArrow(World world, Entity entity, Operation<Boolean> original) {
+	private boolean enchantmentReforged$afterArrowSpawned(World world, Entity entity, Operation<Boolean> original) {
 		boolean spawned = original.call(world, entity);
-		if (spawned && entity instanceof PersistentProjectileEntity arrow) {
-			ItemStack bow = enchantmentReforged$currentBow.get();
-			if (bow != null && EnchantmentEffects.rollPhantomArrow(bow)) {
-				EnchantmentEffects.markExtraHitArrow(arrow);
-				EnchantmentEffects.spawnExtraArrow(arrow);
-			}
+		if (!spawned || !(entity instanceof PersistentProjectileEntity arrow)) {
+			return spawned;
+		}
+		ItemStack bow = enchantmentReforged$currentBow.get();
+		if (bow == null) {
+			return spawned;
+		}
+		enchantmentReforged$applyBowCrossbowEnchantments(bow, arrow);
+		if (EnchantmentEffects.rollPhantomArrow(bow)) {
+			EnchantmentEffects.markExtraHitArrow(arrow);
+			EnchantmentEffects.spawnExtraArrow(arrow);
 		}
 		return spawned;
+	}
+
+	/**
+	 * 弩的两个附魔在弓上的效果（共用开关 {@code enable_crossbow_compat}，1.3.6 起双向互通）。
+	 *
+	 * <ul>
+	 *     <li><b>穿透</b>：按等级直接写原版的穿透字段（1.20.1 该字段是公开 API）；必须先写再生成额外箭，
+	 *     额外箭靠 NBT 复制继承；</li>
+	 *     <li><b>多重射击</b>：原版是"主箭 + 左右各一支"，散射角与弩共用 {@code multishot_spread_degrees}；
+	 *     额外箭的方向按原版弩的数学重算（见 {@code EnchantmentEffects#spawnMultishotArrow}）。</li>
+	 * </ul>
+	 *
+	 * <p>弹药口径：固定射 3 支、仍只走原版那次消耗（无限/无尽箭袋/创造照旧免耗），额外箭不可拾取。
+	 */
+	@Unique
+	private static void enchantmentReforged$applyBowCrossbowEnchantments(ItemStack bow,
+			PersistentProjectileEntity arrow) {
+		EnchantmentReforgedConfig config = EnchantmentReforgedConfig.get();
+		if (!config.enableCrossbowCompat) {
+			return;
+		}
+		int pierce = EnchantmentHelper.getLevel(Enchantments.PIERCING, bow);
+		if (pierce > 0) {
+			arrow.setPierceLevel((byte) pierce);
+		}
+		int multishot = EnchantmentHelper.getLevel(Enchantments.MULTISHOT, bow);
+		if (multishot <= 0) {
+			return;
+		}
+		// 与弩侧同口径：主箭与额外箭各自判定"保证生效"
+		EnchantmentEffects.markMultishotArrow(bow, arrow);
+		if (!(arrow.getOwner() instanceof LivingEntity shooter)) {
+			return;
+		}
+		double spread = config.multishotSpreadDegrees;
+		float inaccuracy = config.bowInaccuracy;
+		EnchantmentEffects.spawnMultishotArrow(arrow, bow, shooter, -spread, inaccuracy);
+		EnchantmentEffects.spawnMultishotArrow(arrow, bow, shooter, spread, inaccuracy);
 	}
 
 	/** 原版弓的自然散布（第 5 号实参，原版写死 1.0）改成读配置 */

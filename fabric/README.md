@@ -143,7 +143,9 @@ Summy Reliquary: Apocrypha 的 `summy-reliquary-apocrypha:apoptosis_element`（�
 - **保护 5 级**：铁砧两个保护 IV → V（`enable_protection_level_5`）。
 - **穿刺改基岩版判定**：目标接触水或淋雨时生效；泡在水里又乘船时无效（`enable_impaling_bedrock_rule`）。
 - **无限 + 经验修补共存**：同一件物品可以同时有这两个附魔（`enable_infinity_mending`）。
-- **弩兼容弓附魔**：力量/无限/火矢/冲击可以附到弩上并正常生效，带无限时装填不消耗箭（`enable_crossbow_compat`）。
+- **弓弩附魔互通**（`enable_crossbow_compat`，1.3.6 起双向）：弩可以附力量/无限/火矢/冲击并正常生效（带无限时装填不消耗箭）；
+  弓可以附原版弩的**多重射击 / 穿透**并真正生效——一次射 3 支（方向按原版弩的数学、散射角读 `multishot_spread_degrees`）、
+  穿透按等级真的穿透。关掉开关则两侧同时失效。
 - **忠诚改版**：投掷保留本体、以"假三叉戟"代替，返回前不能再次投掷（`enable_loyalty_rework`）。
 
 ## 创造模式物品页与附魔书说明
@@ -190,8 +192,9 @@ Summy Reliquary: Apocrypha 的 `summy-reliquary-apocrypha:apoptosis_element`（�
 - `BlockMixin`：`dropStacks` 换成熔炉产物（潜行跳过）。
 - `AnvilScreenHandlerMixin` + `AnvilScreenMixin`：成本换算成经验点数、按点数判定与扣费、两处 40 级截断失效。
 - `ExperienceOrbEntityMixin`：经验球给经验的那一次调用按经验学者放大。
-- `EnchantmentMixin`：锋利Plus↔原版锋利、自动熔炼↔精准采集的互斥、"原版锋利退出随机池"，以及"弩兼容弓附魔""无限+经验修补"的放行。
+- `EnchantmentMixin`：锋利Plus↔原版锋利、自动熔炼↔精准采集的互斥、"原版锋利退出随机池"，以及"弓弩附魔互通"（弩收弓附魔、弓收多重射击/穿透）与"无限+经验修补"的放行。
 - `CrossbowItemMixin`：弩箭生成后按弩上的力量/火矢/冲击写属性，带无限时装填不耗箭。
+- `BowItemMixin`：主箭生成后按弓上的穿透写原版穿透字段；带多重射击时再补左右各一支（方向按原版弩的四元数旋转、速度取主箭、散布读弓散布配置），并给三支各自按 `enable_multishot_all_hit` 决定是否"保证生效"。
 - `TridentEntityMixin` + `PlayerEntityMixin`：三叉戟近战与投掷的穿刺按"接触水或淋雨"判定（替换生物类型复用原版加成）；投掷命中补上魔剑/嗜血；承载"假三叉戟"标记（飞回只消失不复制）。
 - `TridentItemMixin`：忠诚改版——投掷不取走本体、给飞出去的打上假三叉戟标记、有忠诚三叉戟在飞时拒绝再次投掷。
 - 事件：斩首用 `AFTER_DEATH`；本能释放用服务端/客户端 tick。
@@ -561,6 +564,37 @@ Kilt 端实测"暗仪刺刀 × 附魔"的问题分两部分，这一版分别处
 自己的两个实体标签提供，且不需要额外注入。
 
 **验证**：两树 `gradlew build` 通过（Forge 侧 `verifyMixinTargets` 27 个文件全绿）；无头 `runServer` 两轮
-（不装 SR / 装 deobf SR + Curios）都到 `Done`，日志出现 `Mixing PersistentProjectileEntityMixin … into AbstractArrow`，
+（不装 SR / 装 deobf SR + Curios）都到 `Done`，日志出现 `Mixing PersistentProjectileEntityMixin … into PersistentProjectileEntity`，
 零注入失败、零标签报错；`run/` 已清理。计数：配置项 80 → **81**（粒子与特效 10 → 11）、中英语言键各 298 → **300**、
 数据文件 +2（两个标签）。产物：`enchantment-reforged-1.3.5.jar`（1.3.4 保留）。
+
+## 1.3.6 弓弩附魔互通（弓兼容「多重射击 / 穿透」）
+
+**目标**：让弓能附上原版弩的**多重射击 / 穿透**，而且**真的生效**。
+
+**已核实的事实**：1.20.1 里穿透写在 `CrossbowItem#getArrow`（读 `Enchantments.PIERCING` 后调
+`AbstractArrow#setPierceLevel(byte)`，该方法与原版弩的散射一样都是公开 API），多重射击写在
+`CrossbowItem#performShooting`（生成 ±10°，ER 早前已把这两个常量改成配置项 `multishot_spread_degrees`），
+而 `BowItem#releaseUsing` 里**完全没有任何**多重射击/穿透逻辑——"能附上"和"能生效"必须分别做。
+
+**改动**：
+
+- **开关共用**：复用 `enable_crossbow_compat`，语义扩为**弓弩附魔互通**（键名保留以免旧配置迁移）：开 = 弩收弓附魔 +
+  弓收多重射击/穿透；关 = 两侧同时失效。配置项数量不变（81 项），只改了中英显示名与说明。
+- **可用性**：扩展现有 `EnchantmentMixin#canEnchant` 那处注入，弓 + `MULTISHOT`/`PIERCING` 直接放行
+  （附魔台、铁砧、命令、创造书随之生效）。两者的互斥沿用原版 `MultiShotEnchantment#checkCompatibility`（多重射击排斥穿透）。
+- **多重射击（弓）**：主箭仍由原版弓逻辑射出；随后按 `Enchantments.MULTISHOT` 生成**左右各一支**，方向**逐字复刻原版弩**——
+  把 `getViewVector(1.0F)` 用四元数绕 `getUpVector(1.0F)` 旋转 ±`multishot_spread_degrees`，再
+  `Projectile#shoot(dirX, dirY, dirZ, 主箭速度, 弓散布)`；额外箭是主箭的副本（伤害/暴击/击退/**穿透**/着火/药水效果/粒子档位全部一致），
+  速度取主箭因此**疾矢倍率自动带上**。三支是否"都能命中同一目标"沿用 `enable_multishot_all_hit`（与弩侧同口径）。
+- **穿透（弓）**：按等级直接写原版穿透字段（先写再生成额外箭，额外箭靠 NBT 复制继承）；穿透行为走原版通用实现，上限 4 级不变。
+- **弹药**：**刻意**保持"固定射 3 支、只消耗 1 支"（多出的两支白送），无限/无尽箭袋/创造照旧免耗；额外箭一律
+  `Pickup.DISALLOWED`，防止"白送的箭"被回收刷箭。
+- **额外箭归属修复**：`AbstractArrow`/`PersistentProjectileEntity` 的存档字段里**没有 owner**，此前幻影箭与
+  多重射击的额外箭都没有攻击者 → 击杀不计入玩家（经验与抢夺都会丢）。现在复制后显式 `setOwner(原箭的 owner)`，
+  幻影箭与额外箭的击杀都正常归功于射手。
+
+**验证**：两树 `gradlew build` 通过（Forge 侧 `verifyMixinTargets` 27 个文件全绿）；无头 `runServer` 两轮
+（不装 SR / 装 deobf SR + Curios）都到 `Done`，日志出现 `Mixing BowItemMixin … into BowItem`、`Mixing CrossbowItemMixin …`、
+`Mixing EnchantmentMixin …`，零注入失败；`run/` 已清理。计数：配置项仍 **81**、中英语言键各仍 **300**（只改了两条文案）、
+无新数据文件。产物：`enchantment-reforged-1.3.6.jar`（1.3.5 保留）。

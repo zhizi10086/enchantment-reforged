@@ -48,6 +48,8 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
 import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.Nullable;
 
@@ -542,37 +544,90 @@ public final class EnchantmentEffects {
 		}
 	}
 
+	/** 幻影箭额外箭的固定小角度（度）：保持 1.3.5 及更早的观感 */
+	private static final double PHANTOM_SPREAD_DEGREES = 2.5D;
+
 	/**
-	 * 复制一支"额外箭"：同类型实体 + NBT 复制 + 小角度偏移 + 不可拾取。
+	 * 复制一支"额外箭"的公共部分：同类型实体 + NBT 复制 + 归属/粒子档位继承 + 不可拾取。
 	 *
 	 * <p>属性（伤害/暴击/击退/穿透/着火等）全部随 NBT 带走，因此额外箭与主箭表现一致。
+	 *
+	 * <p><b>归属者必须显式补</b>：{@code AbstractArrow} 的存档字段只有 damage / crit / PierceLevel /
+	 * pickup 等，<b>不含 owner</b>，光靠 NBT 复制得到的额外箭没有攻击者，击杀不计入射手
+	 * （经验与抢夺都会丢）。1.3.6 起在这里补上。
+	 *
+	 * @param markExtraHit 是否给额外箭打"保证生效"标记（幻影箭恒定要；多重射击由 {@link #markMultishotArrow} 决定）
 	 */
-	public static void spawnExtraArrow(AbstractArrow original) {
+	private static AbstractArrow copyExtraArrow(AbstractArrow original, boolean markExtraHit) {
 		if (original.level().isClientSide) {
-			return;
+			return null;
 		}
 		Entity copy = original.getType().create(original.level());
 		if (!(copy instanceof AbstractArrow extra)) {
-			return;
+			return null;
 		}
 		CompoundTag nbt = new CompoundTag();
 		original.addAdditionalSaveData(nbt);
 		extra.readAdditionalSaveData(nbt);
 		extra.moveTo(original.getX(), original.getY(), original.getZ(), original.getYRot(), original.getXRot());
-		// 小角度偏移，避免与主箭完全重叠
-		double spread = Math.toRadians(2.5D);
-		Vec3 velocity = original.getDeltaMovement();
-		double cos = Math.cos(spread);
-		double sin = Math.sin(spread);
-		Vec3 rotated = new Vec3(velocity.x * cos - velocity.z * sin, velocity.y, velocity.x * sin + velocity.z * cos);
-		extra.setDeltaMovement(rotated);
+		extra.setDeltaMovement(original.getDeltaMovement());
 		// 额外箭不可拾取，也不占用弹药
 		extra.pickup = AbstractArrow.Pickup.DISALLOWED;
-		markExtraHitArrow(extra);
+		// 归属者（owner 不进 NBT）
+		Entity owner = original.getOwner();
+		if (owner != null) {
+			extra.setOwner(owner);
+		}
+		if (markExtraHit) {
+			markExtraHitArrow(extra);
+		}
 		// 额外箭要继承"射手选定的粒子档位"：档位写在同步字节里，不会随上面的 NBT 复制过去
 		if (original instanceof ArrowParticleCarrier source && extra instanceof ArrowParticleCarrier target) {
 			target.enchantmentReforged$setParticleStyle(source.enchantmentReforged$getParticleStyle());
 		}
+		return extra;
+	}
+
+	/** 幻影箭的额外箭：小角度偏移（2.5°）避免与主箭重叠，并打"保证生效"标记 */
+	public static void spawnExtraArrow(AbstractArrow original) {
+		AbstractArrow extra = copyExtraArrow(original, true);
+		if (extra == null) {
+			return;
+		}
+		// 小角度偏移，避免与主箭完全重叠
+		double spread = Math.toRadians(PHANTOM_SPREAD_DEGREES);
+		Vec3 velocity = original.getDeltaMovement();
+		double cos = Math.cos(spread);
+		double sin = Math.sin(spread);
+		extra.setDeltaMovement(new Vec3(velocity.x * cos - velocity.z * sin, velocity.y,
+				velocity.x * sin + velocity.z * cos));
+		original.level().addFreshEntity(extra);
+	}
+
+	/**
+	 * 弓的多重射击额外箭（1.3.6）：属性复制自主箭，方向按<b>原版弩的数学</b>重算。
+	 *
+	 * <p>原版 {@code CrossbowItem#shootProjectile} 的做法是：把射手视线 {@code getViewVector(1.0F)}
+	 * 用四元数绕"上向量"旋转 ±散射角，再 {@code shoot(dirX, dirY, dirZ, 速度, 散布)}。
+	 * 这里逐字复刻；速度取主箭当前速度（因此"疾矢"的倍率自动带上），散布用本模组的弓散布配置。
+	 *
+	 * @param yawOffsetDegrees 左右偏移角度（调用方传 ±散射角，得到与原版一样的一左一右）
+	 */
+	public static void spawnMultishotArrow(AbstractArrow original, ItemStack weapon, LivingEntity shooter,
+			double yawOffsetDegrees, float inaccuracy) {
+		AbstractArrow extra = copyExtraArrow(original, false);
+		if (extra == null || shooter == null) {
+			return;
+		}
+		Vec3 view = shooter.getViewVector(1.0F);
+		Vec3 up = shooter.getUpVector(1.0F);
+		Quaternionf rotation = new Quaternionf().setAngleAxis((float) Math.toRadians(yawOffsetDegrees),
+				up.x, up.y, up.z);
+		Vector3f dir = view.toVector3f().rotate(rotation);
+		float speed = (float) original.getDeltaMovement().length();
+		extra.shoot(dir.x(), dir.y(), dir.z(), speed, inaccuracy);
+		// 与弩侧同口径：三支是否都能生效由 enable_multishot_all_hit 决定
+		markMultishotArrow(weapon, extra);
 		original.level().addFreshEntity(extra);
 	}
 
