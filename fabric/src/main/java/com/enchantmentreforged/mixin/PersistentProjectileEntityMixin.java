@@ -1,6 +1,7 @@
 package com.enchantmentreforged.mixin;
 
 import com.enchantmentreforged.combat.EnchantmentEffects;
+import com.enchantmentreforged.combat.ArrowTraits;
 import com.enchantmentreforged.config.ArrowParticleStyle;
 import com.enchantmentreforged.network.ParticlePreferences;
 import com.enchantmentreforged.particle.ArrowParticleCarrier;
@@ -21,7 +22,9 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Constant;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyConstant;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
@@ -45,6 +48,9 @@ public abstract class PersistentProjectileEntityMixin implements ArrowParticleCa
 	@Shadow
 	@Final
 	private static TrackedData<Byte> PROJECTILE_FLAGS;
+	/** 原版"已插在方块里"标记（protected 字段，没有对应的 getter，用 @Shadow 读） */
+	@Shadow
+	protected boolean inGround;
 
 	/** 档位占用的 4 个高位（8 / 16 / 32 / 64） */
 	@Unique
@@ -112,6 +118,39 @@ public abstract class PersistentProjectileEntityMixin implements ArrowParticleCa
 	}
 
 	/**
+	 * 轻盈（1.3.7）：把原版箭的重力常量按"这支箭的轻盈等级"缩放。
+	 *
+	 * <p>已用 javap 核对：{@code tick} 里真正生效的重力是那个 double 常量
+	 * {@code 0.05000000074505806}（同名的 float 局部是死代码）；两端都读各自的表，
+	 * 等级由服务端在箭生成时通过 S2C 包同步，因此射手与旁观者看到的弹道一致。
+	 */
+	@ModifyConstant(method = "tick", constant = @Constant(doubleValue = 0.05000000074505806D))
+	private double enchantmentReforged$lightnessGravity(double gravity) {
+		return gravity * ArrowTraits.gravityFactor((PersistentProjectileEntity) (Object) this);
+	}
+
+	/**
+	 * 死亡之眼（1.3.7）：整箭落空结算 + 实体移除时清表。
+	 *
+	 * <p><b>硬规则</b>：只有"整段飞行未命中任何生物"且已插地 / 已移除的箭才掷清空概率；
+	 * 命中过生物（包含穿透一箭多目标）后落地一律不掷、不清空。
+	 */
+	@Inject(method = "tick", at = @At("TAIL"))
+	private void enchantmentReforged$settleDeathEye(CallbackInfo ci) {
+		PersistentProjectileEntity self = (PersistentProjectileEntity) (Object) this;
+		if (self.getWorld().isClient) {
+			return;
+		}
+		if (ArrowTraits.hasDeathEye(self) && !ArrowTraits.hitLiving(self.getId())
+				&& (this.inGround || self.isRemoved()) && ArrowTraits.markSettled(self.getId())) {
+			ArrowTraits.recordMiss(self);
+		}
+		if (self.isRemoved()) {
+			ArrowTraits.forget(self.getId());
+		}
+	}
+
+	/**
 	 * 档位补写（1.3.5）：覆盖"先构造出实体、之后才 {@code setOwner(player)}"的自定义发射路径。
 	 *
 	 * <p>本树原本只在构造器末尾继承档位，所以那条路径上的箭不携带档位、整条粒子链路都不介入。
@@ -154,11 +193,17 @@ public abstract class PersistentProjectileEntityMixin implements ArrowParticleCa
 	)
 	private boolean enchantmentReforged$retryExtraHit(Entity target, DamageSource source, float amount,
 			Operation<Boolean> original) {
-		boolean hit = original.call(target, source, amount);
-		Entity self = (Entity) (Object) this;
+		PersistentProjectileEntity self = (PersistentProjectileEntity) (Object) this;
+		// 死亡之眼（1.3.7）：命中时先用"当前层数"放大本次伤害（穿透一箭多目标时每个目标各结算一次）
+		float adjusted = amount * ArrowTraits.deathEyeMultiplier(self);
+		boolean hit = original.call(target, source, adjusted);
 		if (!hit && target instanceof LivingEntity living && EnchantmentEffects.isExtraHitArrow(self)) {
 			living.timeUntilRegen = 0;
-			return original.call(target, source, amount);
+			hit = original.call(target, source, adjusted);
+		}
+		if (hit && target instanceof LivingEntity) {
+			// 命中生物后才加层（先算伤害再加层），并清掉连续落空计数
+			ArrowTraits.recordHit(self);
 		}
 		return hit;
 	}

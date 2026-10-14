@@ -56,11 +56,20 @@ public class SimpleEnchantment extends Enchantment {
 		if (this.isTridentCompatible() && (stack.isOf(Items.TRIDENT) || SpearCompat.isSpear(stack))) {
 			return true;
 		}
+		// 1.3.7：轻盈与死亡之眼是"弓弩两用"附魔（不受"弓弩附魔互通"开关影响）
+		if (this.isBowAndCrossbow() && (stack.isOf(Items.BOW) || stack.isOf(Items.CROSSBOW))) {
+			return true;
+		}
 		if (this.isCrossbowCompatible() && stack.isOf(Items.CROSSBOW)
 				&& EnchantmentReforgedConfig.get().enableCrossbowCompat) {
 			return true;
 		}
 		return super.isAcceptableItem(stack);
+	}
+
+	/** 弓弩两用的本模组附魔（1.3.7）：轻盈、死亡之眼 */
+	private boolean isBowAndCrossbow() {
+		return this == ModEnchantments.LIGHTNESS || this == ModEnchantments.DEATH_EYE;
 	}
 
 	/** 兼容清单只写在这里，调整时改这一处即可 */

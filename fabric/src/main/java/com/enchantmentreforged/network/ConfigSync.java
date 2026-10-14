@@ -10,7 +10,9 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Identifier;
+import net.minecraft.entity.projectile.PersistentProjectileEntity;
 
 import java.util.Map;
 import java.util.UUID;
@@ -31,12 +33,15 @@ public final class ConfigSync {
 	/** 服务端 → 客户端：请上报粒子偏好；载荷是协议版本（客户端据此判断服务端是否支持远距离代发） */
 	public static final Identifier PARTICLE_REQUEST_CHANNEL =
 			new Identifier(EnchantmentReforged.MOD_ID, "particle_style_request");
+	/** 1.3.7：服务端 → 客户端：某支箭的"轻盈等级"（实体 id + 等级；两端都要算重力，必须同步） */
+	public static final Identifier ARROW_LIGHTNESS_CHANNEL =
+			new Identifier(EnchantmentReforged.MOD_ID, "arrow_lightness");
 
 	/**
 	 * 粒子上报协议版本：1 = 只有档位；2 = +远距离开关与半径；3 = +近战档位；4 = +横扫档位；
 	 * 5 = +近战强度；7 = +出其不意档位与死亡粒子档位；8 = +闪避音效档位。
 	 */
-	public static final int PARTICLE_PROTOCOL_VERSION = 8;
+	public static final int PARTICLE_PROTOCOL_VERSION = 9;
 	/** 支持"远距离代发"的最低协议版本 */
 	public static final int LONG_DISTANCE_PROTOCOL_VERSION = 2;
 	/** 注册表里没有记录时，每多少 tick 重新索要一次 */
@@ -141,6 +146,29 @@ public final class ConfigSync {
 		PacketByteBuf buffer = PacketByteBufs.create();
 		buffer.writeString(EnchantmentReforgedConfig.get().toJsonString());
 		ServerPlayNetworking.send(player, CHANNEL, buffer);
+	}
+
+	/**
+	 * 1.3.7 轻盈：把"某支箭的等级"发给附近能看到它的玩家（同维度、64 格内 = 实体同步范围）。
+	 *
+	 * <p>客户端没装本模组时 {@code canSend} 为 false，直接跳过（纯原版客户端不受影响）。
+	 */
+	public static void sendArrowLightness(PersistentProjectileEntity arrow, int level) {
+		if (arrow == null || level <= 0 || !(arrow.getWorld() instanceof ServerWorld world)) {
+			return;
+		}
+		for (ServerPlayerEntity player : world.getPlayers()) {
+			if (player.squaredDistanceTo(arrow) > 64.0D * 64.0D) {
+				continue;
+			}
+			if (!ServerPlayNetworking.canSend(player, ARROW_LIGHTNESS_CHANNEL)) {
+				continue;
+			}
+			PacketByteBuf buffer = PacketByteBufs.create();
+			buffer.writeVarInt(arrow.getId());
+			buffer.writeVarInt(level);
+			ServerPlayNetworking.send(player, ARROW_LIGHTNESS_CHANNEL, buffer);
+		}
 	}
 
 	/** 广播给所有在线玩家（命令或界面改完配置后调用） */

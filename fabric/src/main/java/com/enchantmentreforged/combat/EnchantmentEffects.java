@@ -4,6 +4,7 @@ import com.enchantmentreforged.EnchantmentReforged;
 import com.enchantmentreforged.config.DodgeSoundStyle;
 import com.enchantmentreforged.config.EnchantmentReforgedConfig;
 import com.enchantmentreforged.network.ParticlePreferences;
+import com.enchantmentreforged.network.ConfigSync;
 import com.enchantmentreforged.particle.ArrowParticleCarrier;
 import com.enchantmentreforged.registry.ModAttributes;
 import com.enchantmentreforged.registry.ModEnchantments;
@@ -25,7 +26,9 @@ import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.projectile.PersistentProjectileEntity;
+import net.minecraft.entity.projectile.ProjectileEntity;
 import net.minecraft.entity.projectile.TridentEntity;
+import net.minecraft.registry.tag.TagKey;
 import net.minecraft.entity.damage.DamageType;
 import net.minecraft.item.BowItem;
 import net.minecraft.item.AxeItem;
@@ -181,6 +184,44 @@ public final class EnchantmentEffects {
 		float multiplier = 1.0F + config.deathsBlessingDamageTakenBonus
 				- config.deathsBlessingResistPerPercent * lossPercent;
 		return Math.max(0.05F, multiplier);
+	}
+
+	/**
+	 * 死神祝福·造成侧不生效的伤害类型标签（1.3.7）。
+	 *
+	 * <p>默认写死 SR / SRA 的定值真伤（这些伤害是"定值"，不该被造成倍率放大）；
+	 * 整合包可以往 {@code data/<包>/tags/damage_type/no_deaths_blessing_outgoing.json} 里增删。
+	 */
+	private static final TagKey<DamageType> NO_DEATHS_BLESSING_OUTGOING = TagKey.of(
+			RegistryKeys.DAMAGE_TYPE, new Identifier("enchantment_reforged", "no_deaths_blessing_outgoing"));
+
+	/** 这一击是否算"由该实体直接造成"（排除 TNT、火焰等间接来源） */
+	public static boolean isDirectDamageFrom(LivingEntity attacker, DamageSource source) {
+		if (attacker == null || source == null) {
+			return false;
+		}
+		Entity direct = source.getSource();
+		if (direct == attacker) {
+			return true;
+		}
+		// 该实体射出的投射物（箭、投掷物）也算"直接造成"
+		return direct instanceof ProjectileEntity projectile && projectile.getOwner() == attacker;
+	}
+
+	/**
+	 * 死神祝福·造成侧是否作用于这一击（1.3.7 起改为全类型，统一在受伤侧按攻击者结算）。
+	 *
+	 * <p>三条边界：① 自伤（attacker == victim）只吃受伤侧；② 只算直接来源（TNT / 火焰 / 爆炸等间接伤害不吃）；
+	 * ③ {@link #NO_DEATHS_BLESSING_OUTGOING} 标签里的伤害类型（SR / SRA 的定值真伤）不吃。
+	 */
+	public static boolean deathsBlessingOutgoingApplies(LivingEntity attacker, LivingEntity victim, DamageSource source) {
+		if (attacker == null || attacker == victim || source == null) {
+			return false;
+		}
+		if (source.isIn(NO_DEATHS_BLESSING_OUTGOING)) {
+			return false;
+		}
+		return isDirectDamageFrom(attacker, source);
 	}
 
 	// ==================== 魔剑 / 嗜血 ====================
@@ -583,6 +624,13 @@ public final class EnchantmentEffects {
 		// 额外箭要继承"射手选定的粒子档位"：档位写在同步字节里，不会随上面的 NBT 复制过去
 		if (original instanceof ArrowParticleCarrier source && extra instanceof ArrowParticleCarrier target) {
 			target.enchantmentReforged$setParticleStyle(source.enchantmentReforged$getParticleStyle());
+		}
+		// 1.3.7：额外箭同样要继承"轻盈等级"（并把等级同步给客户端）与"死亡之眼归属"
+		ArrowTraits.copyLightness(original, extra);
+		ArrowTraits.copyDeathEye(original, extra);
+		int lightness = ArrowTraits.serverLightness(extra);
+		if (lightness > 0) {
+			ConfigSync.sendArrowLightness(extra, lightness);
 		}
 		return extra;
 	}

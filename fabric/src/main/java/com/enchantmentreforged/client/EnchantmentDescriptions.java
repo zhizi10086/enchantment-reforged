@@ -185,6 +185,19 @@ public final class EnchantmentDescriptions {
 			float per = config.nimbleStepsChancePerLevel;
 			return key(enchantment, level, withPrefix, "nimble_steps", percent(per * level));
 		}
+		// 1.3.7 三个箭矢附魔
+		if (enchantment == ModEnchantments.LIGHTNESS) {
+			double reduction = Math.min(0.9D, config.lightnessGravityReductionPerLevel * level);
+			return key(enchantment, level, withPrefix, "lightness", percent((float) reduction));
+		}
+		if (enchantment == ModEnchantments.SKY_WISH) {
+			return key(enchantment, level, withPrefix, "sky_wish",
+					percent(config.skyWishBonusPerTick), percent(config.skyWishMaxBonus));
+		}
+		if (enchantment == ModEnchantments.DEATH_EYE) {
+			return key(enchantment, level, withPrefix, "death_eye",
+					percent(config.deathEyeDamagePerStack), config.deathEyeMaxStacks);
+		}
 		// 原版忠诚被本模组改成了"本体不离开物品栏"：附魔书上补一行说明（装备上那行单独常显）
 		if (!withPrefix && enchantment == Enchantments.LOYALTY && config.enableLoyaltyRework) {
 			return plain("loyalty_rework");

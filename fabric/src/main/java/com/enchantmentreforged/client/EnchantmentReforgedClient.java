@@ -2,6 +2,7 @@ package com.enchantmentreforged.client;
 
 import com.enchantmentreforged.config.EnchantmentReforgedConfig;
 import com.enchantmentreforged.combat.EnchantmentEffects;
+import com.enchantmentreforged.combat.ArrowTraits;
 import com.enchantmentreforged.network.ConfigSync;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.api.EnvType;
@@ -93,10 +94,20 @@ public class EnchantmentReforgedClient implements ClientModInitializer {
 			});
 		});
 
+		// 1.3.7 轻盈：服务端同步"这支箭的等级"（实体 id + 等级），写进客户端表供重力换算
+		ClientPlayNetworking.registerGlobalReceiver(ConfigSync.ARROW_LIGHTNESS_CHANNEL,
+				(client, handler, buffer, responseSender) -> {
+					int entityId = buffer.readVarInt();
+					int level = buffer.readVarInt();
+					client.execute(() -> ArrowTraits.setClientLightness(entityId, level));
+				});
+
 		// 离开服务器/世界后，恢复成本地配置文件里的设置
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(() -> {
 			particlePreferenceDirty = true;
 			serverSupportsLongDistanceParticles = false;
+			// 换服务器 / 切换世界时清掉箭矢特性表（客户端侧只需轻盈表）
+			ArrowTraits.clearAll();
 			if (usingServerConfig) {
 				usingServerConfig = false;
 				EnchantmentReforgedConfig.load();

@@ -1,7 +1,9 @@
 package com.enchantmentreforged.mixin;
 
 import com.enchantmentreforged.combat.EnchantmentEffects;
+import com.enchantmentreforged.combat.ArrowTraits;
 import com.enchantmentreforged.config.EnchantmentReforgedConfig;
+import com.enchantmentreforged.network.ConfigSync;
 import com.enchantmentreforged.registry.ModEnchantments;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
@@ -32,17 +34,22 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class BowItemMixin {
 	@Unique
 	private static final ThreadLocal<ItemStack> enchantmentReforged$currentBow = new ThreadLocal<>();
+	/** 本次松手时的真实蓄力 tick 数（破空之愿用；与"速射"改的换算无关） */
+	@Unique
+	private static final ThreadLocal<Integer> enchantmentReforged$currentDrawTicks = new ThreadLocal<>();
 
 	@Inject(method = "onStoppedUsing", at = @At("HEAD"))
 	private void enchantmentReforged$captureBow(ItemStack stack, World world, LivingEntity user,
 			int remainingUseTicks, CallbackInfo ci) {
 		enchantmentReforged$currentBow.set(stack);
+		enchantmentReforged$currentDrawTicks.set(Math.max(0, stack.getMaxUseTime() - remainingUseTicks));
 	}
 
 	@Inject(method = "onStoppedUsing", at = @At("RETURN"))
 	private void enchantmentReforged$clearBow(ItemStack stack, World world, LivingEntity user,
 			int remainingUseTicks, CallbackInfo ci) {
 		enchantmentReforged$currentBow.remove();
+		enchantmentReforged$currentDrawTicks.remove();
 	}
 
 	/** 速射：把"已经过的 tick"放大，等效于满蓄力时间缩短 */
@@ -151,12 +158,52 @@ public abstract class BowItemMixin {
 		if (bow == null) {
 			return spawned;
 		}
+		enchantmentReforged$applyArrowTraits(bow, arrow);
 		enchantmentReforged$applyBowCrossbowEnchantments(bow, arrow);
 		if (EnchantmentEffects.rollPhantomArrow(bow)) {
 			EnchantmentEffects.markExtraHitArrow(arrow);
 			EnchantmentEffects.spawnExtraArrow(arrow);
 		}
 		return spawned;
+	}
+
+	/**
+	 * 1.3.7 的三个箭矢附魔（弓侧）：
+	 *
+	 * <ul>
+	 *     <li><b>轻盈</b>：登记等级并同步给客户端（重力两端都要算）；</li>
+	 *     <li><b>破空之愿</b>：按真实蓄力 tick 放大箭的<b>基础伤害</b>（已含原版力量加值），
+	 *     0 tick 起算、每 tick +5%、上限 +200%（40 tick 封顶）；</li>
+	 *     <li><b>死亡之眼</b>：把这支箭登记为"参与统计"（层数由命中/落空推进）。</li>
+	 * </ul>
+	 *
+	 * <p>必须放在生成多重射击/幻影箭的额外箭之前——额外箭靠复制会顺带继承这三项。
+	 */
+	@Unique
+	private static void enchantmentReforged$applyArrowTraits(ItemStack bow, PersistentProjectileEntity arrow) {
+		EnchantmentReforgedConfig config = EnchantmentReforgedConfig.get();
+		if (config.enableLightness && ModEnchantments.LIGHTNESS != null) {
+			int level = EnchantmentHelper.getLevel(ModEnchantments.LIGHTNESS, bow);
+			if (level > 0) {
+				ArrowTraits.setServerLightness(arrow, level);
+				ConfigSync.sendArrowLightness(arrow, level);
+			}
+		}
+		if (config.enableSkyWish && ModEnchantments.SKY_WISH != null
+				&& EnchantmentHelper.getLevel(ModEnchantments.SKY_WISH, bow) > 0) {
+			Integer drawTicks = enchantmentReforged$currentDrawTicks.get();
+			int ticks = drawTicks == null ? 0 : drawTicks;
+			float bonus = (float) Math.min(config.skyWishBonusPerTick * ticks, config.skyWishMaxBonus);
+			if (bonus > 0.0F) {
+				// Yarn 名：PersistentProjectileEntity 的伤害字段是 getDamage / setDamage
+				arrow.setDamage(arrow.getDamage() * (1.0D + bonus));
+			}
+		}
+		if (config.enableDeathEye && ModEnchantments.DEATH_EYE != null
+				&& EnchantmentHelper.getLevel(ModEnchantments.DEATH_EYE, bow) > 0
+				&& arrow.getOwner() instanceof LivingEntity shooter) {
+			ArrowTraits.markDeathEye(arrow, shooter);
+		}
 	}
 
 	/**

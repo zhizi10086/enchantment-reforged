@@ -1,12 +1,14 @@
 package com.enchantmentreforged.event;
 
 import com.enchantmentreforged.combat.EnchantmentEffects;
+import com.enchantmentreforged.combat.ArrowTraits;
 import com.enchantmentreforged.network.ConfigSync;
 import com.enchantmentreforged.particle.MeleeParticles;
 import com.enchantmentreforged.particle.DeathParticles;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.server.network.ServerPlayerEntity;
 
@@ -31,17 +33,27 @@ public final class EnchantmentReforgedEvents {
 		ServerLivingEntityEvents.AFTER_DEATH.register(EnchantmentEffects::onDeathForBeheading);
 		// 玩家死亡时在原地爆发一团粒子（只对玩家生效）
 		ServerLivingEntityEvents.AFTER_DEATH.register((victim, source) -> DeathParticles.onPlayerDeath(victim));
+		// 死亡之眼：死亡即清空层数（重生后重新累计）
+		ServerLivingEntityEvents.AFTER_DEATH.register((victim, source) -> ArrowTraits.clearPlayer(victim.getUuid()));
 
 		// 重生时清掉生命护盾残留（原版会把吸收值带到新角色身上）
-		ServerPlayerEvents.AFTER_RESPAWN.register((newPlayer, oldPlayer, alive) ->
-				EnchantmentEffects.clearLifeShield(newPlayer));
+		ServerPlayerEvents.AFTER_RESPAWN.register((newPlayer, oldPlayer, alive) -> {
+			EnchantmentEffects.clearLifeShield(newPlayer);
+			// 死亡之眼：重生同样清零（死亡事件已清一次，这里做兜底）
+			ArrowTraits.clearPlayer(newPlayer.getUuid());
+		});
 
 		// 断线时清掉忠诚投掷冷却的登记，避免长期服务器残留已下线的 UUID
 		ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
 			EnchantmentEffects.clearLoyaltyCooldown(handler.getPlayer().getUuid());
 			// 灵魂加护的冷却同样只在本次会话里有意义，断线即忘
 			EnchantmentEffects.clearSoulGraceCooldown(handler.getPlayer().getUuid());
+			// 死亡之眼：断线即清空层数（重登不保留）
+			ArrowTraits.clearPlayer(handler.getPlayer().getUuid());
 		});
+
+		// 停服：箭矢特性表整体清空（箭是短命实体，跨存档没有意义）
+		ServerLifecycleEvents.SERVER_STOPPED.register(server -> ArrowTraits.clearAll());
 
 		ServerTickEvents.END_SERVER_TICK.register(server -> {
 			// 首次 tick 自检一次：护盾属性是否真的挂到了玩家默认属性上

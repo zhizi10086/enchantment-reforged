@@ -1,10 +1,14 @@
 package com.enchantmentreforged.mixin;
 
 import com.enchantmentreforged.combat.EnchantmentEffects;
+import com.enchantmentreforged.combat.ArrowTraits;
 import com.enchantmentreforged.config.EnchantmentReforgedConfig;
+import com.enchantmentreforged.network.ConfigSync;
+import com.enchantmentreforged.registry.ModEnchantments;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
+import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.projectile.PersistentProjectileEntity;
@@ -45,6 +49,29 @@ public abstract class CrossbowItemMixin {
 		PersistentProjectileEntity arrow = cir.getReturnValue();
 		if (arrow != null) {
 			EnchantmentEffects.applyCrossbowEnchantments(crossbow, arrow);
+			enchantmentReforged$applyArrowTraits(crossbow, arrow, shooter);
+		}
+	}
+
+	/**
+	 * 1.3.7 的箭矢附魔（弩侧）：轻盈（等级登记 + 同步）与死亡之眼（登记参与统计）。
+	 *
+	 * <p>破空之愿只作用于弓，弩侧不处理；多重射击的三支箭各自经过 {@code createArrow}，因此三支都登记。
+	 */
+	@Unique
+	private static void enchantmentReforged$applyArrowTraits(ItemStack crossbow, PersistentProjectileEntity arrow,
+			LivingEntity shooter) {
+		EnchantmentReforgedConfig config = EnchantmentReforgedConfig.get();
+		if (config.enableLightness && ModEnchantments.LIGHTNESS != null) {
+			int level = EnchantmentHelper.getLevel(ModEnchantments.LIGHTNESS, crossbow);
+			if (level > 0) {
+				ArrowTraits.setServerLightness(arrow, level);
+				ConfigSync.sendArrowLightness(arrow, level);
+			}
+		}
+		if (config.enableDeathEye && ModEnchantments.DEATH_EYE != null && shooter != null
+				&& EnchantmentHelper.getLevel(ModEnchantments.DEATH_EYE, crossbow) > 0) {
+			ArrowTraits.markDeathEye(arrow, shooter);
 		}
 	}
 

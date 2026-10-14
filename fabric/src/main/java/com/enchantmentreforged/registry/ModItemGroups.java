@@ -58,6 +58,9 @@ public final class ModItemGroups {
 				ModEnchantments.INSTINCTIVE_RELEASE,
 				ModEnchantments.PHANTOM_ARROW,
 				ModEnchantments.ENDLESS_QUIVER,
+				ModEnchantments.LIGHTNESS,
+				ModEnchantments.SKY_WISH,
+				ModEnchantments.DEATH_EYE,
 				// 生存与治疗
 				ModEnchantments.HEALTH_BOOST,
 				ModEnchantments.LIFE_SHIELD,

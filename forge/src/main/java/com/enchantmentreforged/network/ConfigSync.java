@@ -1,13 +1,16 @@
 package com.enchantmentreforged.network;
 
 import com.enchantmentreforged.EnchantmentReforged;
+import com.enchantmentreforged.combat.ArrowTraits;
 import com.enchantmentreforged.client.EnchantmentReforgedClient;
 import com.enchantmentreforged.config.DodgeSoundStyle;
 import com.enchantmentreforged.config.EnchantmentReforgedConfig;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.projectile.AbstractArrow;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.network.NetworkEvent;
@@ -42,8 +45,9 @@ public final class ConfigSync {
 	/**
 	 * 粒子上报协议版本：1 = 只有档位；2 = +远距离开关与半径；3 = +近战档位；4 = +横扫档位；
 	 * 5 = +近战强度；7 = +出其不意档位与死亡粒子档位；8 = +闪避音效档位。
+	 * 9（1.3.7）= 通道里新增了一条 S2C "箭矢轻盈等级"消息（两端必须同版本，见 README）。
 	 */
-	public static final int PARTICLE_PROTOCOL_VERSION = 8;
+	public static final int PARTICLE_PROTOCOL_VERSION = 9;
 	/** 支持"远距离代发"的最低协议版本 */
 	public static final int LONG_DISTANCE_PROTOCOL_VERSION = 2;
 	/** 注册表里没有记录时，每多少 tick 重新索要一次 */
@@ -74,6 +78,34 @@ public final class ConfigSync {
 		INSTANCE.registerMessage(id++, ConfigMsg.class, ConfigMsg::encode, ConfigMsg::decode, ConfigSync::handleConfig);
 		INSTANCE.registerMessage(id++, ParticleRequestMsg.class, ParticleRequestMsg::encode,
 				ParticleRequestMsg::decode, ConfigSync::handleParticleRequest);
+		// 1.3.7：箭矢轻盈等级（S2C）。通道协议版本同时升到 9，旧客户端会在握手阶段被拒绝而不是收到未知消息。
+		INSTANCE.registerMessage(id++, ArrowLightnessMsg.class, ArrowLightnessMsg::encode,
+				ArrowLightnessMsg::decode, ConfigSync::handleArrowLightness);
+	}
+
+	/** 服务端 → 客户端：某支箭的轻盈等级 */
+	private static void handleArrowLightness(ArrowLightnessMsg msg, Supplier<NetworkEvent.Context> contextSupplier) {
+		NetworkEvent.Context context = contextSupplier.get();
+		context.enqueueWork(() -> DistExecutor.unsafeRunWhenOn(Dist.CLIENT,
+				() -> () -> ArrowTraits.setClientLightness(msg.entityId(), msg.level())));
+		context.setPacketHandled(true);
+	}
+
+	/**
+	 * 服务端：把"某支箭的轻盈等级"发给附近能看到它的玩家（同维度、64 格内 = 实体同步范围）。
+	 *
+	 * <p>只有装了本模组的客户端才可能收到（通道协议版本握手保证），纯原版客户端根本连不上本模组的服务器配置。
+	 */
+	public static void sendArrowLightness(AbstractArrow arrow, int level) {
+		if (arrow == null || level <= 0 || !(arrow.level() instanceof ServerLevel serverLevel)) {
+			return;
+		}
+		for (ServerPlayer player : serverLevel.players()) {
+			if (player.distanceToSqr(arrow) > 64.0D * 64.0D) {
+				continue;
+			}
+			INSTANCE.send(PacketDistributor.PLAYER.with(() -> player), new ArrowLightnessMsg(arrow.getId(), level));
+		}
 	}
 
 	private static void handleParticleStyle(ParticleStyleMsg msg, Supplier<NetworkEvent.Context> contextSupplier) {
@@ -209,6 +241,18 @@ public final class ConfigSync {
 
 		static ParticleRequestMsg decode(FriendlyByteBuf buf) {
 			return new ParticleRequestMsg(buf.readVarInt());
+		}
+	}
+
+	/** 1.3.7：箭矢轻盈等级（实体 id + 等级） */
+	public record ArrowLightnessMsg(int entityId, int level) {
+		static void encode(ArrowLightnessMsg msg, FriendlyByteBuf buf) {
+			buf.writeVarInt(msg.entityId());
+			buf.writeVarInt(msg.level());
+		}
+
+		static ArrowLightnessMsg decode(FriendlyByteBuf buf) {
+			return new ArrowLightnessMsg(buf.readVarInt(), buf.readVarInt());
 		}
 	}
 }

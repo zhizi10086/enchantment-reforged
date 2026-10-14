@@ -86,10 +86,11 @@ public final class SpearCompat {
 
 		// 期望的"不再翻倍"的伤害：左键 = 基础 + 附魔×蓄力；右键 = 原参数（已含基础+附魔+充能奖励）
 		float wanted = leftClick ? originalDamage + cooldown * enchant : originalDamage;
-		// 我们的倍率：死神祝福两条路径都吃，力量Plus 仅左键
-		float multiplier = EnchantmentEffects.deathsBlessingOutgoing(attacker);
+		// 我们的倍率：力量Plus 仅左键。
+		// （1.3.7 起"死神祝福·造成侧"统一在受伤侧按攻击者结算，这里不再乘，避免重复叠加）
+		float multiplier = 1.0F;
 		if (leftClick) {
-			multiplier *= CombatFormulas.strengthMultiplier(attacker);
+			multiplier = CombatFormulas.strengthMultiplier(attacker);
 		}
 		wanted *= multiplier;
 

@@ -1,6 +1,7 @@
 package com.enchantmentreforged.event;
 
 import com.enchantmentreforged.combat.CombatFormulas;
+import com.enchantmentreforged.combat.ArrowTraits;
 import com.enchantmentreforged.combat.EnchantmentEffects;
 import com.enchantmentreforged.command.EnchantmentReforgedCommand;
 import com.enchantmentreforged.network.ConfigSync;
@@ -54,6 +55,8 @@ public final class EnchantmentReforgedEvents {
 		}
 		EnchantmentEffects.onDeathForBeheading(entity, event.getSource());
 		DeathParticles.onPlayerDeath(entity);
+		// 死亡之眼：死亡即清空层数（重生后重新累计）
+		ArrowTraits.clearPlayer(entity.getUUID());
 	}
 
 	/** 重生（含死亡重生）：清掉生命护盾残留（原版会把吸收值带到新角色身上） */
@@ -77,6 +80,8 @@ public final class EnchantmentReforgedEvents {
 			EnchantmentEffects.clearLoyaltyCooldown(player.getUUID());
 			EnchantmentEffects.clearSoulGraceCooldown(player.getUUID());
 			ParticlePreferences.clear(player.getUUID());
+			// 死亡之眼：断线即清空层数（重登不保留）
+			ArrowTraits.clearPlayer(player.getUUID());
 		}
 	}
 
@@ -112,5 +117,6 @@ public final class EnchantmentReforgedEvents {
 	private static void onServerStopped(ServerStoppedEvent event) {
 		MeleeParticles.clearBursts();
 		ParticlePreferences.clearAll();
+		ArrowTraits.clearAll();
 	}
 }

@@ -99,9 +99,16 @@ public abstract class LivingEntityMixin {
 			at = @At("HEAD"),
 			argsOnly = true
 	)
-	private float enchantmentReforged$deathsBlessingIncoming(float amount) {
+	private float enchantmentReforged$deathsBlessingIncoming(float amount, DamageSource source) {
 		LivingEntity self = (LivingEntity) (Object) this;
-		return amount * EnchantmentEffects.deathsBlessingIncoming(self);
+		float result = amount * EnchantmentEffects.deathsBlessingIncoming(self);
+		// 1.3.7：死神祝福·造成侧改为"全类型"，统一在这里按攻击者结算（只算直接来源、排除定值真伤与自伤）。
+		// 原来分散在近战/横扫、生物近战、矛刺、SR 斩击与投掷上的乘法已全部删除，避免重复叠加。
+		if (source != null && source.getAttacker() instanceof LivingEntity attacker
+				&& EnchantmentEffects.deathsBlessingOutgoingApplies(attacker, self, source)) {
+			result *= EnchantmentEffects.deathsBlessingOutgoing(attacker);
+		}
+		return result;
 	}
 
 	/**

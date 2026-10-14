@@ -185,9 +185,9 @@ public abstract class PlayerEntityMixin {
 	)
 	private boolean enchantmentReforged$applyStrengthToHit(Entity target, DamageSource source, float amount, Operation<Boolean> original) {
 		PlayerEntity self = enchantmentReforged$self();
-		// 力量倍率 × 死神祝福的"造成伤害"倍率 × 复仇的窗口加成（三者同乘区）
+		// 力量倍率 × 复仇的窗口加成（同乘区）。
+		// 1.3.7 起"死神祝福·造成侧"统一在受伤侧按攻击者结算，这里只留力量 × 复仇
 		float finalAmount = amount * CombatFormulas.strengthMultiplier(self)
-				* EnchantmentEffects.deathsBlessingOutgoing(self)
 				* EnchantmentEffects.revengeMultiplier(self);
 		boolean hit = original.call(target, source, finalAmount);
 		// 命中后效果统一走 SummyReliquaryCompat.settleHit：与 SR 兼容路径共用同一套口径与同一份诊断日志。
@@ -219,7 +219,6 @@ public abstract class PlayerEntityMixin {
 	private boolean enchantmentReforged$applyStrengthToSweep(LivingEntity target, DamageSource source, float amount, Operation<Boolean> original) {
 		PlayerEntity self = enchantmentReforged$self();
 		boolean hit = original.call(target, source, amount * CombatFormulas.strengthMultiplier(self)
-				* EnchantmentEffects.deathsBlessingOutgoing(self)
 				* EnchantmentEffects.revengeMultiplier(self));
 		return hit;
 	}

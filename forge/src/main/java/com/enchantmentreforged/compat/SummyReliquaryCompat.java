@@ -59,10 +59,14 @@ public final class SummyReliquaryCompat {
 		return active;
 	}
 
-	/** 近战伤害乘区：力量 × 死神祝福（造成方）× 复仇，与 {@code PlayerEntityMixin} 里的算法一致 */
+	/**
+	 * 近战伤害乘区：力量 × 复仇，与 {@code PlayerEntityMixin} 里的算法一致。
+	 *
+	 * <p>1.3.7 起"死神祝福·造成侧"改为全类型、统一在受伤侧按攻击者结算，因此这里不再乘它
+	 * （否则近战会与受伤侧那次重复叠加）。
+	 */
 	public static float meleeMultiplier(Player attacker) {
 		return CombatFormulas.strengthMultiplier(attacker)
-				* EnchantmentEffects.deathsBlessingOutgoing(attacker)
 				* EnchantmentEffects.revengeMultiplier(attacker);
 	}
 
@@ -79,7 +83,7 @@ public final class SummyReliquaryCompat {
 	 *
 	 * @param entry         注入点标签（诊断日志用）：strike / heavySlash / thrownSpear / melee
 	 * @param rawAmount     未乘乘区的原始金额
-	 * @param amount        最终金额（已乘力量 / 死神祝福·造成方 / 复仇）
+	 * @param amount        最终金额（已乘力量 × 复仇；死神祝福·造成侧自 1.3.7 起在受伤侧统一结算）
 	 * @param landed        这一击是否真的落地（原版 hurt 的返回值）
 	 * @param allowExecute  是否允许斩杀判定
 	 * @param allowSurprise 是否允许出其不意（强力斩击按设计传 false）
@@ -149,7 +153,7 @@ public final class SummyReliquaryCompat {
 	private static String debugLastLine;
 
 	/**
-	 * `[ER-SR]` 逐次结算日志：把这一击的原始金额、乘区三分量、魔剑 / 嗜血 / 斩杀 / 出其不意的实际结果、
+	 * `[ER-SR]` 逐次结算日志：把这一击的原始金额、乘区（力量 / 复仇）、魔剑 / 嗜血 / 斩杀 / 出其不意的实际结果、
 	 * 目标血量与粒子档位写进一行，用来在实机上一眼判断"某个附魔到底有没有生效"。
 	 *
 	 * <p>只在 {@code debug_sr_compat} 打开、且本环境真的装了 SR 时输出；每 tick 最多 8 行、同内容去重。
@@ -202,7 +206,6 @@ public final class SummyReliquaryCompat {
 				.append(" / 出其不意").append(surpriseLevel).append("）")
 				.append(" | ").append(fmt(rawAmount))
 				.append(" × 力量").append(fmt(CombatFormulas.strengthMultiplier(attacker)))
-				.append(" × 死神").append(fmt(EnchantmentEffects.deathsBlessingOutgoing(attacker)))
 				.append(" × 复仇").append(fmt(EnchantmentEffects.revengeMultiplier(attacker)))
 				.append(" = ").append(fmt(amount))
 				.append(" | hurt=").append(landed);

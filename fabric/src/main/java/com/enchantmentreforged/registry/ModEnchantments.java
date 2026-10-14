@@ -43,6 +43,10 @@ public final class ModEnchantments {
 	public static SimpleEnchantment REVENGE;
 	public static SimpleEnchantment SOUL_GRACE;
 	public static SimpleEnchantment NIMBLE_STEPS;
+	/** 1.3.7 新增：轻盈 / 破空之愿 / 死亡之眼 */
+	public static SimpleEnchantment LIGHTNESS;
+	public static SimpleEnchantment SKY_WISH;
+	public static SimpleEnchantment DEATH_EYE;
 
 	private ModEnchantments() {
 	}
@@ -130,6 +134,15 @@ public final class ModEnchantments {
 		// 灵动步伐：每级 +5% 几率完全闪避伤害，靴子，宝藏
 		NIMBLE_STEPS = register("nimble_steps", new SimpleEnchantment(
 				Enchantment.Rarity.VERY_RARE, EnchantmentTarget.ARMOR_FEET, 3, true, false, EquipmentSlot.FEET));
+		// 轻盈（1.3.7）：每级箭矢重力 -25%，弓弩
+		LIGHTNESS = register("lightness", new SimpleEnchantment(
+				Enchantment.Rarity.RARE, EnchantmentTarget.BOW, 3, false, false, EquipmentSlot.MAINHAND));
+		// 破空之愿（1.3.7）：按蓄力 tick 增加箭矢伤害（每 tick +5%，上限 +200%），弓，宝藏
+		SKY_WISH = register("sky_wish", new SimpleEnchantment(
+				Enchantment.Rarity.VERY_RARE, EnchantmentTarget.BOW, 1, true, false, EquipmentSlot.MAINHAND));
+		// 死亡之眼（1.3.7）：命中累计箭矢伤害加成、整箭落空按概率清空，弓弩，宝藏
+		DEATH_EYE = register("death_eye", new SimpleEnchantment(
+				Enchantment.Rarity.VERY_RARE, EnchantmentTarget.BOW, 1, true, false, EquipmentSlot.MAINHAND));
 	}
 
 	private static <T extends Enchantment> T register(String path, T enchantment) {
