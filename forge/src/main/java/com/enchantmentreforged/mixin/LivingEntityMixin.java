@@ -104,7 +104,9 @@ public abstract class LivingEntityMixin {
 		float result = amount * EnchantmentEffects.deathsBlessingIncoming(self);
 		// 1.3.7：死神祝福·造成侧改为"全类型"，统一在这里按攻击者结算（只算直接来源、排除定值真伤与自伤）。
 		// 原来分散在近战/横扫、生物近战、矛刺、SR 斩击与投掷上的乘法已全部删除，避免重复叠加。
-		if (source != null && source.getEntity() instanceof LivingEntity attacker
+		// "抑制窗口"（1.3.7）里的伤害不再乘造成侧：SR 强力斩击整条链路按原设计不吃增伤乘区
+		if (!EnchantmentEffects.isOutgoingSuppressed() && source != null
+				&& source.getEntity() instanceof LivingEntity attacker
 				&& EnchantmentEffects.deathsBlessingOutgoingApplies(attacker, self, source)) {
 			result *= EnchantmentEffects.deathsBlessingOutgoing(attacker);
 		}

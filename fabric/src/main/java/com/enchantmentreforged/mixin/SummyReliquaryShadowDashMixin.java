@@ -1,5 +1,6 @@
 package com.enchantmentreforged.mixin;
 
+import com.enchantmentreforged.combat.EnchantmentEffects;
 import com.enchantmentreforged.compat.SummyReliquaryCompat;
 import com.enchantmentreforged.particle.MeleeParticles;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
@@ -72,10 +73,17 @@ public abstract class SummyReliquaryShadowDashMixin {
 		if (player == null) {
 			return original.call(target, source, amount);
 		}
-		boolean hit = original.call(target, source, amount);
-		SummyReliquaryCompat.settleHit("heavySlash", player, player.getMainHandStack(), target, source,
-				amount, amount, hit, true, false, true);
-		return hit;
+		// 强力斩击按 SR 原设计整条链路不吃增伤乘区：进入"抑制造成侧"窗口，
+		// 让主命中与随后由它触发的魔剑 / 斩杀补刀都不再被死神祝福·造成侧放大（1.3.7 起）
+		EnchantmentEffects.pushOutgoingSuppressed();
+		try {
+			boolean hit = original.call(target, source, amount);
+			SummyReliquaryCompat.settleHit("heavySlash", player, player.getMainHandStack(), target, source,
+					amount, amount, hit, true, false, true);
+			return hit;
+		} finally {
+			EnchantmentEffects.popOutgoingSuppressed();
+		}
 	}
 
 	/**

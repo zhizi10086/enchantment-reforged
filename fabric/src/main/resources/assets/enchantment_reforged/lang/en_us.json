@@ -313,10 +313,10 @@
   "enchantment.enchantment_reforged.sky_wish": "Wish of the Sky",
   "enchantment.enchantment_reforged.sky_wish.desc": "The longer you draw, the harder the arrow hits",
   "enchantment.enchantment_reforged.death_eye": "Death's Eye",
-  "enchantment.enchantment_reforged.death_eye.desc": "Hits stack arrow damage; a full miss may clear the stacks",
+  "enchantment.enchantment_reforged.death_eye.desc": "Hits stack arrow damage; a full miss clears the stacks",
   "tooltip.enchantment_reforged.desc.lightness": "-%s arrow gravity",
   "tooltip.enchantment_reforged.desc.sky_wish": "+%s damage per drawn tick, up to +%s",
-  "tooltip.enchantment_reforged.desc.death_eye": "+%s damage per stack (max %s), a full miss may clear the stacks",
+  "tooltip.enchantment_reforged.desc.death_eye": "+%s damage per stack (max %s), a full miss clears the stacks",
 
   "text.enchantment_reforged.category.arrow_traits": "Arrow Traits",
   "text.enchantment_reforged.option.enable_lightness": "Lightness",
@@ -335,10 +335,6 @@
   "text.enchantment_reforged.option.death_eye_damage_per_stack.tooltip": "Damage per stack, 0.25 = +25% each (equivalent to (4+n)/4)",
   "text.enchantment_reforged.option.death_eye_max_stacks": "Death's Eye stack cap",
   "text.enchantment_reforged.option.death_eye_max_stacks.tooltip": "Maximum stacks, default 8 (up to x3.0)",
-  "text.enchantment_reforged.option.death_eye_miss_clear_chance_1": "Death's Eye clear chance (1 miss)",
-  "text.enchantment_reforged.option.death_eye_miss_clear_chance_1.tooltip": "Chance to clear after 1 consecutive miss, default 20%",
-  "text.enchantment_reforged.option.death_eye_miss_clear_chance_2": "Death's Eye clear chance (2 misses)",
-  "text.enchantment_reforged.option.death_eye_miss_clear_chance_2.tooltip": "Chance to clear after 2 consecutive misses, default 30%",
-  "text.enchantment_reforged.option.death_eye_miss_clear_chance_3": "Death's Eye clear chance (3+ misses)",
-  "text.enchantment_reforged.option.death_eye_miss_clear_chance_3.tooltip": "Chance to clear after 3 or more consecutive misses, default 50%"
+  "text.enchantment_reforged.option.arrow_trait_hint_particles": "Arrow trait hint particles",
+  "text.enchantment_reforged.option.arrow_trait_hint_particles.tooltip": "Shows hint particles on the shooter when Wish of the Sky is fully drawn (runes) or Death's Eye is at max stacks (enchanted hit)"
 }

@@ -13,6 +13,7 @@
     "ExperienceOrbEntityMixin",
     "HungerManagerMixin",
     "InfinityEnchantmentMixin",
+    "ItemMixin",
     "ItemStackMixin",
     "LivingEntityMixin",
     "MobEntityMixin",

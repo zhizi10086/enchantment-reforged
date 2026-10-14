@@ -224,6 +224,109 @@ public final class EnchantmentEffects {
 		return isDirectDamageFrom(attacker, source);
 	}
 
+	// ==================== 造成侧抑制窗口（1.3.7） ====================
+
+	/**
+	 * 造成侧抑制窗口：窗口内产生的伤害**不再**被死神祝福·造成侧的倍率乘一次。
+	 *
+	 * <p>用途：SR「强力斩击」按原设计整条链路都不吃增伤乘区（1.3.6 的口径），
+	 * 所以它的主命中与随后由它触发的魔剑 / 斩杀补刀都要在这个窗口里结算。
+	 * 用深度计数而不是布尔，是为了容忍嵌套时 pop 语义仍然正确。
+	 *
+	 * <p>伤害结算在服务端主线程与客户端预测线程各自同步执行，所以 {@link ThreadLocal} 足够。
+	 */
+	private static final ThreadLocal<Integer> OUTGOING_SUPPRESS_DEPTH = ThreadLocal.withInitial(() -> 0);
+
+	/** 进入"抑制造成侧"的窗口（必须在 finally 里配对调用 {@link #popOutgoingSuppressed()}） */
+	public static void pushOutgoingSuppressed() {
+		OUTGOING_SUPPRESS_DEPTH.set(OUTGOING_SUPPRESS_DEPTH.get() + 1);
+	}
+
+	/** 退出"抑制造成侧"的窗口 */
+	public static void popOutgoingSuppressed() {
+		int depth = OUTGOING_SUPPRESS_DEPTH.get() - 1;
+		if (depth <= 0) {
+			OUTGOING_SUPPRESS_DEPTH.remove();
+		} else {
+			OUTGOING_SUPPRESS_DEPTH.set(depth);
+		}
+	}
+
+	/** 当前是否处在"抑制造成侧"的窗口里（受伤侧注入据此跳过造成侧那一层） */
+	public static boolean isOutgoingSuppressed() {
+		Integer depth = OUTGOING_SUPPRESS_DEPTH.get();
+		if (depth == null || depth <= 0) {
+			OUTGOING_SUPPRESS_DEPTH.remove();
+			return false;
+		}
+		return true;
+	}
+
+	// ==================== 箭矢特性提示粒子（1.3.7） ====================
+
+	/**
+	 * 破空之愿"满蓄力"提示：在射手身上持续播附魔符文（{@code ENCHANT}）。
+	 *
+	 * <p>由弓的每 tick 使用钩子调用——那个钩子两端都会跑到，所以这里第一件事就是排除客户端：
+	 * 粒子只在服务端生成一次，再由服务端广播给附近玩家。
+	 * 达到上限所需的蓄力 tick 数 = ceil(上限加成 / 每 tick 加成)，两项配置非正时不提示。
+	 */
+	public static void tickSkyWishFullHint(LivingEntity user, ItemStack stack, int remainingUseTicks) {
+		EnchantmentReforgedConfig config = EnchantmentReforgedConfig.get();
+		if (user == null || stack == null || !config.arrowTraitHintParticles || !config.enableSkyWish
+				|| ModEnchantments.SKY_WISH == null) {
+			return;
+		}
+		World world = user.getWorld();
+		if (world.isClient) {
+			return;
+		}
+		if (!(stack.getItem() instanceof BowItem) || EnchantmentHelper.getLevel(ModEnchantments.SKY_WISH, stack) <= 0) {
+			return;
+		}
+		int fullTicks = skyWishFullChargeTicks(config);
+		if (fullTicks <= 0) {
+			return;
+		}
+		int drawnTicks = Math.max(0, stack.getMaxUseTime() - remainingUseTicks);
+		if (drawnTicks < fullTicks) {
+			return;
+		}
+		if (world instanceof ServerWorld serverWorld) {
+			serverWorld.spawnParticles(ParticleTypes.ENCHANT, user.getX(), user.getBodyY(0.8D), user.getZ(),
+					2, 0.3D, 0.3D, 0.3D, 0.02D);
+		}
+	}
+
+	/** 破空之愿"满蓄力"所需的真实蓄力 tick 数（配置不可用时返回 -1） */
+	public static int skyWishFullChargeTicks(EnchantmentReforgedConfig config) {
+		if (config == null || config.skyWishBonusPerTick <= 0.0F || config.skyWishMaxBonus <= 0.0F) {
+			return -1;
+		}
+		return Math.max(1, (int) Math.ceil(config.skyWishMaxBonus / config.skyWishBonusPerTick));
+	}
+
+	/**
+	 * 死亡之眼"满层"提示：只要该玩家的层数达到上限，就在他肩边持续播附魔命中粒子（{@code ENCHANTED_HIT}）。
+	 *
+	 * <p>由服务端每 tick 的玩家循环调用——状态式提示：与是否正在射击无关，层数被清空后立刻停止。
+	 * 样式刻意与破空之愿的附魔符文区分（颜色形状不同、扩散更大更贴肩外）。
+	 */
+	public static void tickDeathEyeFullHint(LivingEntity player) {
+		EnchantmentReforgedConfig config = EnchantmentReforgedConfig.get();
+		if (player == null || !config.arrowTraitHintParticles || !config.enableDeathEye) {
+			return;
+		}
+		int max = Math.max(0, config.deathEyeMaxStacks);
+		if (max <= 0 || ArrowTraits.stacks(player.getUuid()) < max) {
+			return;
+		}
+		if (player.getWorld() instanceof ServerWorld serverWorld) {
+			serverWorld.spawnParticles(ParticleTypes.ENCHANTED_HIT, player.getX(), player.getBodyY(0.8D), player.getZ(),
+					2, 0.45D, 0.5D, 0.45D, 0.01D);
+		}
+	}
+
 	// ==================== 魔剑 / 嗜血 ====================
 
 	/** 魔剑：近战入口，等级取自攻击者主手 */

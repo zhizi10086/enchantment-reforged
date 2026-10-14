@@ -107,6 +107,8 @@ public final class EnchantmentReforgedEvents {
 			EnchantmentEffects.tickLoyaltyCooldown(player);
 			// 箭矢粒子偏好：没登记到的玩家定期重新索要（每 5 秒一次，最多 6 次）
 			ConfigSync.tickParticlePreferenceRequests(player, serverTicks);
+			// 死亡之眼：层数满时在射手身边持续播提示粒子（状态式，与是否正在射击无关）
+			EnchantmentEffects.tickDeathEyeFullHint(player);
 			// 灵魂加护：每秒把"冷却效果"与服务端计时对齐
 			if (serverTicks % 20 == 0) {
 				EnchantmentEffects.syncSoulGraceCooldown(player);

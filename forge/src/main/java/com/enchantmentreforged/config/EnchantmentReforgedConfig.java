@@ -79,18 +79,14 @@ public final class EnchantmentReforgedConfig {
 	public float skyWishBonusPerTick = 0.05F;
 	/** 破空之愿的加成上限（2.0 = 最多 +200%，即 40 tick 封顶） */
 	public float skyWishMaxBonus = 2.0F;
-	/** 死亡之眼：命中累计箭矢伤害加成、落空按概率清空 */
+	/** 死亡之眼：命中累计箭矢伤害加成、整箭落空即清空 */
 	public boolean enableDeathEye = true;
 	/** 死亡之眼每层的伤害加成（0.25 = 每层 +25%，公式 (4+n)/4） */
 	public float deathEyeDamagePerStack = 0.25F;
 	/** 死亡之眼的层数上限（默认 8，即最多 ×3.0） */
 	public int deathEyeMaxStacks = 8;
-	/** 连续落空 1 次时的清空概率 */
-	public float deathEyeMissClearChance1 = 0.20F;
-	/** 连续落空 2 次时的清空概率 */
-	public float deathEyeMissClearChance2 = 0.30F;
-	/** 连续落空 3 次及以上时的清空概率 */
-	public float deathEyeMissClearChance3 = 0.50F;
+	/** 箭矢特性"到顶"提示粒子：破空之愿满蓄力 / 死亡之眼满层时在射手身边显示 */
+	public boolean arrowTraitHintParticles = true;
 
 	// ---------------- 魔剑 ----------------
 	public boolean enableSpellblade = true;
@@ -566,6 +562,9 @@ public final class EnchantmentReforgedConfig {
 		// 客户端作用域：灵动步伐闪避时的音效档位（每名玩家各自设置，0 = 关闭）
 		NIMBLE_STEPS_SOUND(Category.PARTICLES, "nimble_steps_sound", Kind.ENUM,
 				0.0D, 8.0D, 1.0D, 3.0D, Scope.CLIENT),
+		// 箭矢特性"到顶"提示粒子（1.3.7）：破空之愿满蓄力 / 死亡之眼满层的提示，共用这一个开关
+		ARROW_TRAIT_HINT_PARTICLES(Category.PARTICLES, "arrow_trait_hint_particles", Kind.BOOLEAN,
+				0.0D, 1.0D, 1.0D, 1.0D),
 
 		// ================= 箭矢特性（1.3.7 新增：轻盈 / 破空之愿 / 死亡之眼） =================
 		ENABLE_LIGHTNESS(Category.ARROW_TRAITS, "enable_lightness", Kind.BOOLEAN, 0.0D, 1.0D, 1.0D, 1.0D),
@@ -579,13 +578,7 @@ public final class EnchantmentReforgedConfig {
 		DEATH_EYE_DAMAGE_PER_STACK(Category.ARROW_TRAITS, "death_eye_damage_per_stack",
 				Kind.DOUBLE, 0.0D, 2.0D, 0.05D, 0.25D),
 		DEATH_EYE_MAX_STACKS(Category.ARROW_TRAITS, "death_eye_max_stacks", Kind.INTEGER,
-				0.0D, 64.0D, 1.0D, 8.0D),
-		DEATH_EYE_MISS_CLEAR_CHANCE_1(Category.ARROW_TRAITS, "death_eye_miss_clear_chance_1",
-				Kind.DOUBLE, 0.0D, 1.0D, 0.05D, 0.20D),
-		DEATH_EYE_MISS_CLEAR_CHANCE_2(Category.ARROW_TRAITS, "death_eye_miss_clear_chance_2",
-				Kind.DOUBLE, 0.0D, 1.0D, 0.05D, 0.30D),
-		DEATH_EYE_MISS_CLEAR_CHANCE_3(Category.ARROW_TRAITS, "death_eye_miss_clear_chance_3",
-				Kind.DOUBLE, 0.0D, 1.0D, 0.05D, 0.50D);
+				0.0D, 64.0D, 1.0D, 8.0D);
 
 		/** 配置项作用域：服务端项由服务端配置决定并同步；客户端项每名玩家各自保存在本地 */
 		public enum Scope {
@@ -739,6 +732,7 @@ public final class EnchantmentReforgedConfig {
 				case ENABLE_NIMBLE_STEPS -> config.enableNimbleSteps ? 1.0D : 0.0D;
 				case NIMBLE_STEPS_CHANCE_PER_LEVEL -> config.nimbleStepsChancePerLevel;
 				case NIMBLE_STEPS_SOUND -> config.nimbleStepsSound;
+				case ARROW_TRAIT_HINT_PARTICLES -> config.arrowTraitHintParticles ? 1.0D : 0.0D;
 				case ENABLE_LIGHTNESS -> config.enableLightness ? 1.0D : 0.0D;
 				case LIGHTNESS_GRAVITY_REDUCTION_PER_LEVEL -> config.lightnessGravityReductionPerLevel;
 				case ENABLE_SKY_WISH -> config.enableSkyWish ? 1.0D : 0.0D;
@@ -747,9 +741,6 @@ public final class EnchantmentReforgedConfig {
 				case ENABLE_DEATH_EYE -> config.enableDeathEye ? 1.0D : 0.0D;
 				case DEATH_EYE_DAMAGE_PER_STACK -> config.deathEyeDamagePerStack;
 				case DEATH_EYE_MAX_STACKS -> config.deathEyeMaxStacks;
-				case DEATH_EYE_MISS_CLEAR_CHANCE_1 -> config.deathEyeMissClearChance1;
-				case DEATH_EYE_MISS_CLEAR_CHANCE_2 -> config.deathEyeMissClearChance2;
-				case DEATH_EYE_MISS_CLEAR_CHANCE_3 -> config.deathEyeMissClearChance3;
 				case ENABLE_PHANTOM_ARROW -> config.enablePhantomArrow ? 1.0D : 0.0D;
 				case PHANTOM_ARROW_CHANCE_PER_LEVEL -> config.phantomArrowChancePerLevel;
 				case ENABLE_ENDLESS_QUIVER -> config.enableEndlessQuiver ? 1.0D : 0.0D;
@@ -842,6 +833,7 @@ public final class EnchantmentReforgedConfig {
 				case ENABLE_NIMBLE_STEPS -> config.enableNimbleSteps = clamped >= 0.5D;
 				case NIMBLE_STEPS_CHANCE_PER_LEVEL -> config.nimbleStepsChancePerLevel = (float) clamped;
 				case NIMBLE_STEPS_SOUND -> config.nimbleStepsSound = (int) Math.round(clamped);
+				case ARROW_TRAIT_HINT_PARTICLES -> config.arrowTraitHintParticles = clamped >= 0.5D;
 				case ENABLE_LIGHTNESS -> config.enableLightness = clamped >= 0.5D;
 				case LIGHTNESS_GRAVITY_REDUCTION_PER_LEVEL -> config.lightnessGravityReductionPerLevel = (float) clamped;
 				case ENABLE_SKY_WISH -> config.enableSkyWish = clamped >= 0.5D;
@@ -850,9 +842,6 @@ public final class EnchantmentReforgedConfig {
 				case ENABLE_DEATH_EYE -> config.enableDeathEye = clamped >= 0.5D;
 				case DEATH_EYE_DAMAGE_PER_STACK -> config.deathEyeDamagePerStack = (float) clamped;
 				case DEATH_EYE_MAX_STACKS -> config.deathEyeMaxStacks = (int) Math.round(clamped);
-				case DEATH_EYE_MISS_CLEAR_CHANCE_1 -> config.deathEyeMissClearChance1 = (float) clamped;
-				case DEATH_EYE_MISS_CLEAR_CHANCE_2 -> config.deathEyeMissClearChance2 = (float) clamped;
-				case DEATH_EYE_MISS_CLEAR_CHANCE_3 -> config.deathEyeMissClearChance3 = (float) clamped;
 				case ENABLE_PHANTOM_ARROW -> config.enablePhantomArrow = clamped >= 0.5D;
 				case PHANTOM_ARROW_CHANCE_PER_LEVEL -> config.phantomArrowChancePerLevel = (float) clamped;
 				case ENABLE_ENDLESS_QUIVER -> config.enableEndlessQuiver = clamped >= 0.5D;

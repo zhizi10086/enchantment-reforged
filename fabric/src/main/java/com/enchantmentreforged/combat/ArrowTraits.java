@@ -6,7 +6,6 @@ import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.projectile.PersistentProjectileEntity;
 import net.minecraft.server.network.ServerPlayerEntity;
 
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -151,7 +150,7 @@ public final class ArrowTraits {
 		return 1.0F + config.deathEyeDamagePerStack * stacks;
 	}
 
-	/** 服务端：命中"会受伤的生物"后调用——打上已命中标记、层数 +1（封顶）、连续落空清零 */
+	/** 服务端：命中"会受伤的生物"后调用——打上已命中标记、层数 +1（封顶） */
 	public static void recordHit(PersistentProjectileEntity arrow) {
 		if (arrow == null) {
 			return;
@@ -165,7 +164,6 @@ public final class ArrowTraits {
 		int max = Math.max(0, config.deathEyeMaxStacks);
 		int[] state = state(owner);
 		state[0] = Math.min(state[0] + 1, max);
-		state[1] = 0;
 	}
 
 	/** 服务端：这支箭是否命中过生物（命中过就永不结算落空——穿透后落地不再掷概率清空） */
@@ -179,8 +177,10 @@ public final class ArrowTraits {
 	}
 
 	/**
-	 * 服务端：整箭落空时结算——连续落空 +1，按 1 / 2 / ≥3 次分别掷 20% / 30% / 50%，
-	 * 掷中则层数与连续落空一起清零。
+	 * 服务端：整箭落空时结算——**无条件清空层数**（1.3.7 起固定 100%，不再掷概率）。
+	 *
+	 * <p>只有"这支箭整段飞行没命中过任何生物、且已插地 / 被移除"才会被调用
+	 * （穿透命中过生物后落地不结算）；层数原本就是 0 时不打日志。
 	 */
 	public static void recordMiss(PersistentProjectileEntity arrow) {
 		if (arrow == null) {
@@ -195,25 +195,10 @@ public final class ArrowTraits {
 			return;
 		}
 		int[] state = state(owner);
-		state[1]++;
-		float chance = switch (Math.min(state[1], 3)) {
-			case 1 -> config.deathEyeMissClearChance1;
-			case 2 -> config.deathEyeMissClearChance2;
-			default -> config.deathEyeMissClearChance3;
-		};
-		if (chance <= 0.0F) {
-			return;
-		}
-		// 用世界的随机源（箭本身没有 getRandom，Yarn 里只有 LivingEntity / World 有）
-		float roll = arrow.getWorld().getRandom().nextFloat();
-		if (roll < chance) {
-			int missed = state[1];
-			int before = state[0];
-			state[0] = 0;
-			state[1] = 0;
-			if (before > 0) {
-				logClear(arrow, owner, missed, roll, chance, before);
-			}
+		int before = state[0];
+		state[0] = 0;
+		if (before > 0) {
+			logClear(arrow, owner, before);
 		}
 	}
 
@@ -251,11 +236,11 @@ public final class ArrowTraits {
 	}
 
 	private static int[] state(UUID owner) {
-		return DEATH_EYE_STATE.computeIfAbsent(owner, key -> new int[2]);
+		// 单元素数组：只存层数（1.3.7 起"落空必清空"，连续落空计数已无判定用途）
+		return DEATH_EYE_STATE.computeIfAbsent(owner, key -> new int[1]);
 	}
 
-	private static void logClear(PersistentProjectileEntity arrow, UUID owner, int missed, float roll, float chance,
-			int before) {
+	private static void logClear(PersistentProjectileEntity arrow, UUID owner, int before) {
 		long tick = arrow.getWorld().getTime();
 		Long last = CLEAR_LOG_STAMP.get(owner);
 		if (last != null && tick - last < CLEAR_LOG_INTERVAL_TICKS) {
@@ -269,8 +254,6 @@ public final class ArrowTraits {
 				name = player.getGameProfile().getName();
 			}
 		}
-		EnchantmentReforged.LOGGER.info("[ER] 死亡之眼（{}）：连续落空 {} 次，掷 {} < {} → 清空（原 {} 层）",
-				name, missed, String.format(Locale.ROOT, "%.2f", roll), String.format(Locale.ROOT, "%.2f", chance),
-				before);
+		EnchantmentReforged.LOGGER.info("[ER] 死亡之眼（{}）：整箭落空 → 清空（原 {} 层）", name, before);
 	}
 }
