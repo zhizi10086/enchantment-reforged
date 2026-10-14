@@ -5,6 +5,8 @@
 
 Minecraft **1.20.1** 的附魔与机制改造模组：重做锋利与力量、铁砧改消耗经验点数，新增 29 个附魔（含锋利Plus）与 10 组配置页；并可选兼容矛 [Backported Spears](https://www.mcmod.cn/class/23213.html)。作者：**Summy**。
 
+> 📖 **全附魔总表（29 个附魔的公式、目标、互斥、配置键、边界与机制附录）见 [docs/enchantments.md](../docs/enchantments.md)**
+
 ## Forge 版构建与移植说明
 
 | 项目 | 版本／说明 |
