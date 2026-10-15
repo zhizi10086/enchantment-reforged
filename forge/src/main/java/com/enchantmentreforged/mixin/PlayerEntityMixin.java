@@ -25,6 +25,9 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.util.HashSet;
+import java.util.Set;
+
 /**
  * 玩家近战伤害管线（1.20.1 原版顺序）：
  *
@@ -57,9 +60,27 @@ public abstract class PlayerEntityMixin {
 	@Unique
 	private Entity enchantmentReforged$attackTarget;
 
+	/**
+	 * 本次挥砍已经伤害过的实体 id（主命中 + 横扫受害者）。
+	 *
+	 * <p>电刀要排除"这一刀已经打过的目标"，所以收集在这里、等 {@code attack} 结束时一起交给
+	 * {@code ElectricArc.start}——启动放到末尾是因为横扫发生在主命中之后，中途启动就漏掉横扫受害者了。
+	 */
+	@Unique
+	private final Set<Integer> enchantmentReforged$swingHitIds = new HashSet<>();
+	/** 本次挥砍的主命中是否落地（落地方为电刀启动条件） */
+	@Unique
+	private boolean enchantmentReforged$mainHitLanded;
+	/** 本次挥砍主命中的攻击侧金额（电刀的弹射基数） */
+	@Unique
+	private float enchantmentReforged$mainHitAmount;
+
 	@Inject(method = "attack(Lnet/minecraft/world/entity/Entity;)V", at = @At("HEAD"))
 	private void enchantmentReforged$captureAttackTarget(Entity target, CallbackInfo ci) {
 		this.enchantmentReforged$attackTarget = target;
+		this.enchantmentReforged$swingHitIds.clear();
+		this.enchantmentReforged$mainHitLanded = false;
+		this.enchantmentReforged$mainHitAmount = 0.0F;
 	}
 
 	/** 大胃袋的"主人"是否已登记过（每个玩家实例只登记一次） */
@@ -200,9 +221,14 @@ public abstract class PlayerEntityMixin {
 		float finalAmount = amount * CombatFormulas.strengthMultiplier(self)
 				* EnchantmentEffects.revengeMultiplier(self) * (1.0F + bladeBonus);
 		boolean hit = original.call(target, source, finalAmount);
-		// 电刀：主命中落地后启动链式弹射（基数就是这一刀的攻击侧金额；只对玩家生效）
+		if (hit) {
+			// 记下"这一刀伤害过的实体"：电刀会排除它们（主命中 + dev 环境下被合流过来的横扫）
+			this.enchantmentReforged$swingHitIds.add(target.getId());
+		}
+		// 电刀的主命中信息先记下来，等 attack 结束（横扫也结算完）再启动链式弹射
 		if (mainHit && hit) {
-			ElectricArc.start(self, target, self.getMainHandItem(), finalAmount);
+			this.enchantmentReforged$mainHitLanded = true;
+			this.enchantmentReforged$mainHitAmount = finalAmount;
 		}
 		// 命中后效果统一走 SummyReliquaryCompat.settleHit：与 SR 兼容路径共用同一套口径与同一份诊断日志。
 		// （魔剑/嗜血恒定；主命中粒子与斩杀只在"主命中"；出其不意两条路径都掷）
@@ -219,7 +245,16 @@ public abstract class PlayerEntityMixin {
 	 */
 	@Inject(method = "attack(Lnet/minecraft/world/entity/Entity;)V", at = @At("TAIL"))
 	private void enchantmentReforged$consumeHiddenBlade(Entity target, CallbackInfo ci) {
-		EnchantmentEffects.onHiddenBladeSwing(enchantmentReforged$self());
+		Player self = enchantmentReforged$self();
+		EnchantmentEffects.onHiddenBladeSwing(self);
+		// 电刀：主命中落地才启动；起始排除集合 = 本次挥砍伤害过的全部目标（含横扫受害者）
+		if (this.enchantmentReforged$mainHitLanded && this.enchantmentReforged$attackTarget != null) {
+			ElectricArc.start(self, this.enchantmentReforged$attackTarget, self.getMainHandItem(),
+					this.enchantmentReforged$mainHitAmount, new HashSet<>(this.enchantmentReforged$swingHitIds));
+		}
+		this.enchantmentReforged$swingHitIds.clear();
+		this.enchantmentReforged$mainHitLanded = false;
+		this.enchantmentReforged$mainHitAmount = 0.0F;
 	}
 
 	/**
@@ -243,6 +278,10 @@ public abstract class PlayerEntityMixin {
 		Player self = enchantmentReforged$self();
 		boolean hit = original.call(target, source, amount * CombatFormulas.strengthMultiplier(self)
 				* EnchantmentEffects.revengeMultiplier(self));
+		if (hit) {
+			// 横扫受害者也要排除在电刀之外（它们已经被这一刀打过了）
+			this.enchantmentReforged$swingHitIds.add(target.getId());
+		}
 		return hit;
 	}
 }

@@ -52,10 +52,12 @@ public final class ElectricArc {
 		private final ServerLevel level;
 		private final UUID attackerId;
 		private final ItemStack weapon;
-		private final Vec3 from;
 		private final Set<Integer> hitIds;
-		private final int segmentsLeft;
 		private final float amount;
+		/** 本段的"起点"（搜索圆心与连线起点）：每段结算后更新为上一段目标的命中点 */
+		private Vec3 from;
+		/** 剩余段数：每段结算后递减，减到 0 就结束整条链 */
+		private int segmentsLeft;
 		private long readyTick;
 
 		private Pending(ServerLevel level, UUID attackerId, ItemStack weapon, Vec3 from, Set<Integer> hitIds,
@@ -74,12 +76,15 @@ public final class ElectricArc {
 	/**
 	 * 启动一条链（玩家左键近战主命中落地后调用）。
 	 *
-	 * @param attacker   攻击者（必须是玩家，电刀只对玩家生效）
-	 * @param firstHit   本刀打中的目标（第一段的起点）
-	 * @param weapon     攻击时主手的剑（决定等级，也用于魔剑/嗜血的等级判定）
-	 * @param baseAmount 主命中的攻击侧金额（弹射基数的来源）
+	 * @param attacker    攻击者（必须是玩家，电刀只对玩家生效）
+	 * @param firstHit    本刀打中的目标（第一段的起点）
+	 * @param weapon      攻击时主手的剑（决定等级，也用于魔剑/嗜血的等级判定）
+	 * @param baseAmount  主命中的攻击侧金额（弹射基数的来源）
+	 * @param excludeIds  本次挥砍已经伤害过的实体 id（主命中 + 横扫受害者）——
+	 *                    它们不该被本刀的电刀再打一次；可为 null
 	 */
-	public static void start(LivingEntity attacker, Entity firstHit, ItemStack weapon, float baseAmount) {
+	public static void start(LivingEntity attacker, Entity firstHit, ItemStack weapon, float baseAmount,
+			Set<Integer> excludeIds) {
 		EnchantmentReforgedConfig config = EnchantmentReforgedConfig.get();
 		if (!config.enableElectricBlade || !(attacker instanceof Player player) || firstHit == null
 				|| weapon == null || weapon.isEmpty()) {
@@ -92,9 +97,12 @@ public final class ElectricArc {
 		if (!(player.level() instanceof ServerLevel serverLevel)) {
 			return;
 		}
-		int segments = Math.min(level, MAX_SEGMENTS);
 		Set<Integer> hitIds = new HashSet<>();
+		if (excludeIds != null) {
+			hitIds.addAll(excludeIds);
+		}
 		hitIds.add(firstHit.getId());
+		int segments = Math.min(level, MAX_SEGMENTS);
 		long delay = Math.max(0, config.electricBladeDelayTicks);
 		PENDING.add(new Pending(serverLevel, player.getUUID(), weapon.copy(), firstHit.position(), hitIds,
 				segments, baseAmount, serverLevel.getGameTime() + delay));
@@ -152,9 +160,14 @@ public final class ElectricArc {
 			EnchantmentEffects.applySpellbladeReport(attacker, pending.weapon, target, amount);
 			EnchantmentEffects.applyLifestealReport(attacker, pending.weapon, amount);
 		}
-		spawnArcParticles(pending.level, pending.from, target);
+		// 本段的命中点：既是这次的连线终点，也是下一段的搜索圆心与起点
+		Vec3 hitPoint = target.position().add(0.0D, target.getBbHeight() * 0.5D, 0.0D);
+		spawnArcParticles(pending.level, pending.from, hitPoint);
+		pending.from = hitPoint;
 		pending.hitIds.add(target.getId());
-		return pending.segmentsLeft - 1 > 0;
+		// 段数递减：1~4 级严格对应 1~4 段
+		pending.segmentsLeft--;
+		return pending.segmentsLeft > 0;
 	}
 
 	/** 以上一段目标为圆心找半径内最近、且链上没打过的活体（排除攻击者本人） */
@@ -178,8 +191,7 @@ public final class ElectricArc {
 	}
 
 	/** 连线电火花 + 命中点小爆发（服务端广播，附近玩家都看得到） */
-	private static void spawnArcParticles(ServerLevel level, Vec3 from, LivingEntity target) {
-		Vec3 to = target.position().add(0.0D, target.getBbHeight() * 0.5D, 0.0D);
+	private static void spawnArcParticles(ServerLevel level, Vec3 from, Vec3 to) {
 		for (int step = 0; step <= LINK_STEPS; step++) {
 			double t = (double) step / LINK_STEPS;
 			double x = from.x + (to.x - from.x) * t;
