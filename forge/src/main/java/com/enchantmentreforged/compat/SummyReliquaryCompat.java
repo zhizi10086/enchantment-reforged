@@ -201,6 +201,7 @@ public final class SummyReliquaryCompat {
 		int hiddenBlade = levelOf(weapon, ModEnchantments.HIDDEN_BLADE);
 		int hiddenBladeTicks = hiddenBlade > 0 ? EnchantmentEffects.hiddenBladeChargedTicks(attacker) : 0;
 		float hiddenBladeBonus = hiddenBlade > 0 ? EnchantmentEffects.hiddenBladeBonus(attacker) : 0.0F;
+		float hiddenBladePierce = hiddenBlade > 0 ? EnchantmentEffects.hiddenBladeChargeProgress(attacker) : 0.0F;
 		StringBuilder sb = new StringBuilder(240);
 		sb.append("[ER-SR] ").append(entry)
 				.append(" | ").append(attacker.getGameProfile().getName())
@@ -209,7 +210,8 @@ public final class SummyReliquaryCompat {
 				.append(" / 斩杀").append(execution)
 				.append(" / 出其不意").append(surpriseLevel)
 				.append(" / 藏剑").append(hiddenBlade)
-				.append("·蓄").append(hiddenBladeTicks).append("tick(").append(fmt(hiddenBladeBonus)).append(")").append("）")
+				.append("·蓄").append(hiddenBladeTicks).append("tick(+").append(fmt(hiddenBladeBonus))
+				.append(",破甲").append(Math.round(hiddenBladePierce * 100.0F)).append("%)").append("）")
 				.append(" | ").append(fmt(rawAmount))
 				.append(" × 力量").append(fmt(CombatFormulas.strengthMultiplier(attacker)))
 				.append(" × 复仇").append(fmt(EnchantmentEffects.revengeMultiplier(attacker)))

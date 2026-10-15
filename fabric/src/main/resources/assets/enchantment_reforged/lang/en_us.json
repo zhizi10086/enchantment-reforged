@@ -336,7 +336,7 @@
   "text.enchantment_reforged.option.death_eye_max_stacks": "Death's Eye stack cap",
   "text.enchantment_reforged.option.death_eye_max_stacks.tooltip": "Maximum stacks, default 8 (up to x3.0)",
   "text.enchantment_reforged.option.arrow_trait_hint_particles": "Arrow trait hint particles",
-  "text.enchantment_reforged.option.arrow_trait_hint_particles.tooltip": "Shows hint particles on the holder for a fully drawn Wish of the Sky (runes), a capped Death's Eye (enchanted hit) or a fully charged Hidden Blade (crit sparks)",
+  "text.enchantment_reforged.option.arrow_trait_hint_particles.tooltip": "Shows hint particles on the holder for a fully drawn Wish of the Sky (runes), a capped Death's Eye (enchanted hit) or a fully charged Hidden Blade (enchant runes)",
 
   "text.enchantment_reforged.category.empowerment": "Empowerment",
   "enchantment.enchantment_reforged.phase_step": "Phase Step",

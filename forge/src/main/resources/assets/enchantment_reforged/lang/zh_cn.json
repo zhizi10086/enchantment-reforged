@@ -336,7 +336,7 @@
   "text.enchantment_reforged.option.death_eye_max_stacks": "死亡之眼 层数上限",
   "text.enchantment_reforged.option.death_eye_max_stacks.tooltip": "层数上限，默认 8（最多 ×3.0）",
   "text.enchantment_reforged.option.arrow_trait_hint_particles": "箭矢特性提示粒子",
-  "text.enchantment_reforged.option.arrow_trait_hint_particles.tooltip": "破空之愿满蓄力（附魔符文）、死亡之眼满层（附魔命中粒子）与藏剑满额（暴击星）时，在持有人身边显示提示粒子",
+  "text.enchantment_reforged.option.arrow_trait_hint_particles.tooltip": "破空之愿满蓄力（附魔符文）、死亡之眼满层（附魔命中粒子）与藏剑满额（附魔符文）时，在持有人身边显示提示粒子",
 
   "text.enchantment_reforged.category.empowerment": "赋能",
   "enchantment.enchantment_reforged.phase_step": "闪身步",

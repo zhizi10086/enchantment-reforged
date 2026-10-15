@@ -4,6 +4,7 @@ import com.enchantmentreforged.combat.CombatFormulas;
 import com.enchantmentreforged.combat.EnchantmentEffects;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
+import com.llamalad7.mixinextras.sugar.Local;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -210,6 +211,27 @@ public abstract class LivingEntityMixin {
 		LivingEntity self = (LivingEntity) (Object) this;
 		float reduction = EnchantmentEffects.undyingGraceReduction(self);
 		return reduction <= 0.0F ? original : Math.max(0.0F, original - reduction);
+	}
+
+	/**
+	 * 藏剑破甲（1.3.8 增补）：这一刀带藏剑加成时，按充能进度把"被护甲扣掉的那部分"补回去。
+	 *
+	 * <p>{@code getDamageAfterArmorAbsorb} 只算"护甲 + 韧性"（原版 {@code CombatRules.getDamageAfterAbsorb}），
+	 * 保护附魔在下一层 {@code getDamageAfterMagicAbsorb} 里才结算——所以这里按比例补回只会削掉护甲层，
+	 * 保护、抗性、伤害吸收照常生效。窗口外（比例 0）完全不动原来的返回值。
+	 */
+	@ModifyReturnValue(
+			method = "getDamageAfterArmorAbsorb(Lnet/minecraft/world/damagesource/DamageSource;F)F",
+			at = @At("RETURN")
+	)
+	private float enchantmentReforged$hiddenBladePierceArmor(float reduced,
+			@Local(argsOnly = true) float incoming) {
+		float pierce = EnchantmentEffects.hiddenBladePierceRatio();
+		if (pierce <= 0.0F || reduced >= incoming) {
+			return reduced;
+		}
+		// 被护甲扣掉的量按比例还回去：pierce = 1 时护甲减免归零
+		return reduced + (incoming - reduced) * Math.min(1.0F, pierce);
 	}
 
 	/**

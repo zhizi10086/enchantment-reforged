@@ -1524,6 +1524,10 @@ public final class EnchantmentEffects {
 	 * @return true 表示这次伤害被闪避掉
 	 */
 	public static boolean rollNimbleSteps(LivingEntity victim, DamageSource source) {
+		// 藏剑穿透窗口：这一刀必定打中，不掷闪避（不消耗随机数、不播闪避音效）
+		if (hiddenBladePierceRatio() > 0.0F) {
+			return false;
+		}
 		if (source != null && source.isIn(NO_DODGE_TAG)) {
 			return false;
 		}
@@ -1643,6 +1647,67 @@ public final class EnchantmentEffects {
 	}
 
 	/**
+	 * 藏剑的充能进度（0~1）：已累积 tick ÷ 封顶所需 tick。
+	 *
+	 * <p>破甲比例就用它——蓄满（默认 200 tick）时是 1.0（护甲减免归零），蓄一半时是 0.5。
+	 */
+	public static float hiddenBladeChargeProgress(LivingEntity entity) {
+		EnchantmentReforgedConfig config = EnchantmentReforgedConfig.get();
+		int fullTicks = hiddenBladeFullTicks(config);
+		if (fullTicks <= 0) {
+			return 0.0F;
+		}
+		int charged = hiddenBladeChargedTicks(entity);
+		if (charged <= 0) {
+			return 0.0F;
+		}
+		return Math.min(1.0F, (float) charged / (float) fullTicks);
+	}
+
+	// ==================== 藏剑穿透窗口（1.3.8 增补） ====================
+
+	/**
+	 * 藏剑穿透窗口：窗口内结算的那一刀会**无视目标的闪避**并按比例**穿透护甲**。
+	 *
+	 * <p>只在"主命中且藏剑加成 &gt; 0"时由 {@code PlayerEntityMixin} 打开（try/finally 配对关闭），
+	 * 所以横扫目标、SR 斩击/投掷、电刀弹射都不享受这个待遇。伤害在同一线程同一调用栈里结算，
+	 * 因此用 {@link ThreadLocal} 记录"深度 + 破甲比例"即可（与造成侧抑制窗口同款）。
+	 */
+	private static final ThreadLocal<Integer> HIDDEN_BLADE_PIERCE_DEPTH = ThreadLocal.withInitial(() -> 0);
+	/** 窗口内生效的破甲比例（0~1）；窗口关闭时归零 */
+	private static final ThreadLocal<Float> HIDDEN_BLADE_PIERCE_RATIO = ThreadLocal.withInitial(() -> 0.0F);
+
+	/** 进入"藏剑穿透"窗口（必须在 finally 里配对调用 {@link #popHiddenBladePierce()}） */
+	public static void pushHiddenBladePierce(float ratio) {
+		HIDDEN_BLADE_PIERCE_DEPTH.set(HIDDEN_BLADE_PIERCE_DEPTH.get() + 1);
+		if (ratio > HIDDEN_BLADE_PIERCE_RATIO.get()) {
+			HIDDEN_BLADE_PIERCE_RATIO.set(ratio);
+		}
+	}
+
+	/** 退出"藏剑穿透"窗口 */
+	public static void popHiddenBladePierce() {
+		int depth = HIDDEN_BLADE_PIERCE_DEPTH.get() - 1;
+		if (depth <= 0) {
+			HIDDEN_BLADE_PIERCE_DEPTH.remove();
+			HIDDEN_BLADE_PIERCE_RATIO.remove();
+		} else {
+			HIDDEN_BLADE_PIERCE_DEPTH.set(depth);
+		}
+	}
+
+	/** 当前破甲比例（0 = 不在窗口内或没有藏剑充能） */
+	public static float hiddenBladePierceRatio() {
+		Integer depth = HIDDEN_BLADE_PIERCE_DEPTH.get();
+		if (depth == null || depth <= 0) {
+			HIDDEN_BLADE_PIERCE_DEPTH.remove();
+			HIDDEN_BLADE_PIERCE_RATIO.remove();
+			return 0.0F;
+		}
+		return HIDDEN_BLADE_PIERCE_RATIO.get();
+	}
+
+	/**
 	 * 藏剑：服务端每 tick 推进——主手持着带该附魔的剑时累积（离开主手暂停但保留），
 	 * 冷却期间停止累积；冷却结束后从 0 重新开始。
 	 */
@@ -1673,7 +1738,7 @@ public final class EnchantmentEffects {
 		}
 	}
 
-	/** 藏剑满额提示：按共用开关在持有人身上每 tick 播 2 个暴击星（与箭矢特性的两处提示区分） */
+	/** 藏剑满额提示：按共用开关在持有人身上每 tick 播 2 个附魔符文（与破空之愿同款，但两者互斥不会同屏） */
 	public static void tickHiddenBladeFullHint(PlayerEntity player) {
 		EnchantmentReforgedConfig config = EnchantmentReforgedConfig.get();
 		if (player == null || !config.arrowTraitHintParticles || !config.enableHiddenBlade
@@ -1689,7 +1754,8 @@ public final class EnchantmentEffects {
 			return;
 		}
 		if (player.getWorld() instanceof ServerWorld serverWorld) {
-			serverWorld.spawnParticles(ParticleTypes.CRIT, player.getX(), player.getBodyY(0.8D), player.getZ(),
+			// 与破空之愿同为附魔符文（两者互斥：一个要弓、一个要剑，不会同屏）
+			serverWorld.spawnParticles(ParticleTypes.ENCHANT, player.getX(), player.getBodyY(0.8D), player.getZ(),
 					2, 0.3D, 0.4D, 0.3D, 0.02D);
 		}
 	}

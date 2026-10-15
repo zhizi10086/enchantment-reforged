@@ -214,7 +214,21 @@ public abstract class PlayerEntityMixin {
 		float bladeBonus = mainHit ? EnchantmentEffects.hiddenBladeBonus(self) : 0.0F;
 		float finalAmount = amount * CombatFormulas.strengthMultiplier(self)
 				* EnchantmentEffects.revengeMultiplier(self) * (1.0F + bladeBonus);
-		boolean hit = original.call(target, source, finalAmount);
+		// 藏剑补强（1.3.8）：主命中且带藏剑加成时开"穿透窗口"——这一刀无视目标闪避、
+		// 并按充能进度穿透护甲（只削护甲层，保护/抗性/吸收照常）
+		boolean pierced = mainHit && bladeBonus > 0.0F;
+		float pierceRatio = pierced ? EnchantmentEffects.hiddenBladeChargeProgress(self) : 0.0F;
+		boolean hit;
+		if (pierceRatio > 0.0F) {
+			EnchantmentEffects.pushHiddenBladePierce(pierceRatio);
+			try {
+				hit = original.call(target, source, finalAmount);
+			} finally {
+				EnchantmentEffects.popHiddenBladePierce();
+			}
+		} else {
+			hit = original.call(target, source, finalAmount);
+		}
 		if (hit) {
 			// 记下"这一刀伤害过的实体"：电刀会排除它们（主命中 + dev 环境下被合流过来的横扫）
 			this.enchantmentReforged$swingHitIds.add(target.getId());
