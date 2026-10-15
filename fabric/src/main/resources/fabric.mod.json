@@ -3,7 +3,7 @@
   "id": "enchantment_reforged",
   "version": "${version}",
   "name": "Enchantment Reforged",
-  "description": "重做锋利与力量、铁砧改消耗经验点数，新增 29 个附魔；兼容矛 Backported Spears 1.4.7 并修复其伤害翻倍（百科链接见下方链接区）。",
+  "description": "重做锋利与力量、铁砧改消耗经验点数，新增 32 个附魔；兼容矛 Backported Spears 1.4.7 并修复其伤害翻倍（百科链接见下方链接区）。",
   "authors": [
     "Summy"
   ],

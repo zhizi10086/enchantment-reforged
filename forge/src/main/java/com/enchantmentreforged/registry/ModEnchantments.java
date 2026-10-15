@@ -50,6 +50,9 @@ public final class ModEnchantments {
 	public static SimpleEnchantment LIGHTNESS;
 	public static SimpleEnchantment SKY_WISH;
 	public static SimpleEnchantment DEATH_EYE;
+	public static SimpleEnchantment PHASE_STEP;
+	public static SimpleEnchantment HIDDEN_BLADE;
+	public static SimpleEnchantment ELECTRIC_BLADE;
 
 	/** 注册事件期间的临时引用，仅用于 register 辅助方法 */
 	private static RegisterEvent pendingEvent;
@@ -165,6 +168,16 @@ public final class ModEnchantments {
 	// 死亡之眼（1.3.7）：命中累计箭矢伤害加成、整箭落空按概率清空，弓弩，宝藏
 	DEATH_EYE = register("death_eye", new SimpleEnchantment(
 			Enchantment.Rarity.VERY_RARE, EnchantmentCategory.BOW, 1, true, false, EquipmentSlot.MAINHAND));
+
+		// 闪身步（1.3.8）：完全免疫投射物伤害（按原版 #minecraft:is_projectile 标签判定），裤子，宝藏
+		PHASE_STEP = register("phase_step", new SimpleEnchantment(
+				Enchantment.Rarity.VERY_RARE, EnchantmentCategory.ARMOR_LEGS, 1, true, false, EquipmentSlot.LEGS));
+		// 藏剑（1.3.8）：未挥砍期间累积下一次攻击的伤害加成，剑，宝藏
+		HIDDEN_BLADE = register("hidden_blade", new SimpleEnchantment(
+				Enchantment.Rarity.VERY_RARE, EnchantmentCategory.WEAPON, 1, true, false, EquipmentSlot.MAINHAND));
+		// 电刀（1.3.8）：近战主命中后链式弹射（每级 +1 段），剑
+		ELECTRIC_BLADE = register("electric_blade", new SimpleEnchantment(
+				Enchantment.Rarity.VERY_RARE, EnchantmentCategory.WEAPON, 4, false, false, EquipmentSlot.MAINHAND));
 	}
 
 	private static <T extends Enchantment> T register(String path, T enchantment) {

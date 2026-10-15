@@ -52,6 +52,10 @@ public final class ModItemGroups {
 				ModEnchantments.LIFESTEAL,
 				ModEnchantments.QUICK_STRIKE,
 				ModEnchantments.SURPRISE,
+				// 赋能（1.3.8）
+				ModEnchantments.HIDDEN_BLADE,
+				ModEnchantments.ELECTRIC_BLADE,
+				ModEnchantments.PHASE_STEP,
 				// 远程与箭矢
 				ModEnchantments.ARROW_VELOCITY,
 				ModEnchantments.QUICK_DRAW,

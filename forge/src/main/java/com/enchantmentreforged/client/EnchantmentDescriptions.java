@@ -195,6 +195,18 @@ public final class EnchantmentDescriptions {
 			return key(enchantment, level, withPrefix, "death_eye",
 					percent(config.deathEyeDamagePerStack), config.deathEyeMaxStacks);
 		}
+		// 1.3.8 三个"赋能"附魔
+		if (enchantment == ModEnchantments.PHASE_STEP) {
+			return key(enchantment, level, withPrefix, "phase_step");
+		}
+		if (enchantment == ModEnchantments.HIDDEN_BLADE) {
+			return key(enchantment, level, withPrefix, "hidden_blade",
+					percent(config.hiddenBladeBonusPerTick), percent(config.hiddenBladeMaxBonus));
+		}
+		if (enchantment == ModEnchantments.ELECTRIC_BLADE) {
+			return key(enchantment, level, withPrefix, "electric_blade",
+					level, percent(config.electricBladeDamageRatio));
+		}
 		// 原版忠诚被本模组改成了"本体不离开物品栏"：附魔书上补一行说明（装备上那行单独常显）
 		if (!withPrefix && enchantment == Enchantments.LOYALTY && config.enableLoyaltyRework) {
 			return plain("loyalty_rework");

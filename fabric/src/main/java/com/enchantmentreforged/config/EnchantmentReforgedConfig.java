@@ -154,6 +154,26 @@ public final class EnchantmentReforgedConfig {
 	public boolean enableUndyingGrace = true;
 	public float undyingGraceDamageReduction = 1.0F;
 
+	// ---------------- 赋能（1.3.8 新增：闪身步 / 藏剑 / 电刀） ----------------
+	/** 闪身步：完全免疫投射物伤害（判定按原版 {@code #minecraft:is_projectile} 标签） */
+	public boolean enablePhaseStep = true;
+	/** 藏剑：未挥砍期间是否累积"下一次攻击"的伤害加成 */
+	public boolean enableHiddenBlade = true;
+	/** 藏剑每 tick 的累积量（0.02 = 每 tick +2%） */
+	public float hiddenBladeBonusPerTick = 0.02F;
+	/** 藏剑的加成上限（4.0 = 最多 +400%） */
+	public float hiddenBladeMaxBonus = 4.0F;
+	/** 藏剑挥砍后的冷却秒数（冷却期间停止累积） */
+	public int hiddenBladeCooldownSeconds = 2;
+	/** 电刀：链式弹射是否启用 */
+	public boolean enableElectricBlade = true;
+	/** 电刀弹射的搜索半径（格） */
+	public double electricBladeRadius = 5.0D;
+	/** 电刀每段伤害相对上一段的倍率（0.8 = 每段 -20%） */
+	public float electricBladeDamageRatio = 0.8F;
+	/** 电刀每段之间的延迟（tick，0.1 秒 = 2） */
+	public int electricBladeDelayTicks = 2;
+
 	// ---------------- 出其不意 ----------------
 	public boolean enableSurprise = true;
 	public float surpriseChancePerLevel = 0.10F;
@@ -431,7 +451,8 @@ public final class EnchantmentReforgedConfig {
 		DEFENSE("defense"),
 		FOOD_GATHERING("food_gathering"),
 		PARTICLES("particles"),
-		ARROW_TRAITS("arrow_traits");
+		ARROW_TRAITS("arrow_traits"),
+		EMPOWERMENT("empowerment");
 
 		private final String key;
 
@@ -578,7 +599,22 @@ public final class EnchantmentReforgedConfig {
 		DEATH_EYE_DAMAGE_PER_STACK(Category.ARROW_TRAITS, "death_eye_damage_per_stack",
 				Kind.DOUBLE, 0.0D, 2.0D, 0.05D, 0.25D),
 		DEATH_EYE_MAX_STACKS(Category.ARROW_TRAITS, "death_eye_max_stacks", Kind.INTEGER,
-				0.0D, 64.0D, 1.0D, 8.0D);
+				0.0D, 64.0D, 1.0D, 8.0D),
+
+		// ================= 赋能（1.3.8 新增：闪身步 / 藏剑 / 电刀） =================
+		ENABLE_PHASE_STEP(Category.EMPOWERMENT, "enable_phase_step", Kind.BOOLEAN, 0.0D, 1.0D, 1.0D, 1.0D),
+		ENABLE_HIDDEN_BLADE(Category.EMPOWERMENT, "enable_hidden_blade", Kind.BOOLEAN, 0.0D, 1.0D, 1.0D, 1.0D),
+		HIDDEN_BLADE_BONUS_PER_TICK(Category.EMPOWERMENT, "hidden_blade_bonus_per_tick",
+				Kind.DOUBLE, 0.0D, 1.0D, 0.01D, 0.02D),
+		HIDDEN_BLADE_MAX_BONUS(Category.EMPOWERMENT, "hidden_blade_max_bonus", Kind.DOUBLE, 0.0D, 20.0D, 0.1D, 4.0D),
+		HIDDEN_BLADE_COOLDOWN_SECONDS(Category.EMPOWERMENT, "hidden_blade_cooldown_seconds",
+				Kind.INTEGER, 0.0D, 60.0D, 1.0D, 2.0D),
+		ENABLE_ELECTRIC_BLADE(Category.EMPOWERMENT, "enable_electric_blade", Kind.BOOLEAN, 0.0D, 1.0D, 1.0D, 1.0D),
+		ELECTRIC_BLADE_RADIUS(Category.EMPOWERMENT, "electric_blade_radius", Kind.DOUBLE, 1.0D, 16.0D, 0.5D, 5.0D),
+		ELECTRIC_BLADE_DAMAGE_RATIO(Category.EMPOWERMENT, "electric_blade_damage_ratio",
+				Kind.DOUBLE, 0.0D, 2.0D, 0.05D, 0.8D),
+		ELECTRIC_BLADE_DELAY_TICKS(Category.EMPOWERMENT, "electric_blade_delay_ticks",
+				Kind.INTEGER, 0.0D, 20.0D, 1.0D, 2.0D);
 
 		/** 配置项作用域：服务端项由服务端配置决定并同步；客户端项每名玩家各自保存在本地 */
 		public enum Scope {
@@ -741,6 +777,15 @@ public final class EnchantmentReforgedConfig {
 				case ENABLE_DEATH_EYE -> config.enableDeathEye ? 1.0D : 0.0D;
 				case DEATH_EYE_DAMAGE_PER_STACK -> config.deathEyeDamagePerStack;
 				case DEATH_EYE_MAX_STACKS -> config.deathEyeMaxStacks;
+				case ENABLE_PHASE_STEP -> config.enablePhaseStep ? 1.0D : 0.0D;
+				case ENABLE_HIDDEN_BLADE -> config.enableHiddenBlade ? 1.0D : 0.0D;
+				case HIDDEN_BLADE_BONUS_PER_TICK -> config.hiddenBladeBonusPerTick;
+				case HIDDEN_BLADE_MAX_BONUS -> config.hiddenBladeMaxBonus;
+				case HIDDEN_BLADE_COOLDOWN_SECONDS -> config.hiddenBladeCooldownSeconds;
+				case ENABLE_ELECTRIC_BLADE -> config.enableElectricBlade ? 1.0D : 0.0D;
+				case ELECTRIC_BLADE_RADIUS -> config.electricBladeRadius;
+				case ELECTRIC_BLADE_DAMAGE_RATIO -> config.electricBladeDamageRatio;
+				case ELECTRIC_BLADE_DELAY_TICKS -> config.electricBladeDelayTicks;
 				case ENABLE_PHANTOM_ARROW -> config.enablePhantomArrow ? 1.0D : 0.0D;
 				case PHANTOM_ARROW_CHANCE_PER_LEVEL -> config.phantomArrowChancePerLevel;
 				case ENABLE_ENDLESS_QUIVER -> config.enableEndlessQuiver ? 1.0D : 0.0D;
@@ -842,6 +887,15 @@ public final class EnchantmentReforgedConfig {
 				case ENABLE_DEATH_EYE -> config.enableDeathEye = clamped >= 0.5D;
 				case DEATH_EYE_DAMAGE_PER_STACK -> config.deathEyeDamagePerStack = (float) clamped;
 				case DEATH_EYE_MAX_STACKS -> config.deathEyeMaxStacks = (int) Math.round(clamped);
+				case ENABLE_PHASE_STEP -> config.enablePhaseStep = clamped >= 0.5D;
+				case ENABLE_HIDDEN_BLADE -> config.enableHiddenBlade = clamped >= 0.5D;
+				case HIDDEN_BLADE_BONUS_PER_TICK -> config.hiddenBladeBonusPerTick = (float) clamped;
+				case HIDDEN_BLADE_MAX_BONUS -> config.hiddenBladeMaxBonus = (float) clamped;
+				case HIDDEN_BLADE_COOLDOWN_SECONDS -> config.hiddenBladeCooldownSeconds = (int) Math.round(clamped);
+				case ENABLE_ELECTRIC_BLADE -> config.enableElectricBlade = clamped >= 0.5D;
+				case ELECTRIC_BLADE_RADIUS -> config.electricBladeRadius = clamped;
+				case ELECTRIC_BLADE_DAMAGE_RATIO -> config.electricBladeDamageRatio = (float) clamped;
+				case ELECTRIC_BLADE_DELAY_TICKS -> config.electricBladeDelayTicks = (int) Math.round(clamped);
 				case ENABLE_PHANTOM_ARROW -> config.enablePhantomArrow = clamped >= 0.5D;
 				case PHANTOM_ARROW_CHANCE_PER_LEVEL -> config.phantomArrowChancePerLevel = (float) clamped;
 				case ENABLE_ENDLESS_QUIVER -> config.enableEndlessQuiver = clamped >= 0.5D;

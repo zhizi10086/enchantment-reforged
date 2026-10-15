@@ -3,6 +3,7 @@ package com.enchantmentreforged.mixin;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.enchantmentreforged.combat.CombatFormulas;
+import com.enchantmentreforged.combat.ElectricArc;
 import com.enchantmentreforged.combat.EnchantmentEffects;
 import com.enchantmentreforged.combat.HungerOwner;
 import com.enchantmentreforged.compat.SummyReliquaryCompat;
@@ -187,14 +188,32 @@ public abstract class PlayerEntityMixin {
 		PlayerEntity self = enchantmentReforged$self();
 		// 力量倍率 × 复仇的窗口加成（同乘区）。
 		// 1.3.7 起"死神祝福·造成侧"统一在受伤侧按攻击者结算，这里只留力量 × 复仇
+		// 1.3.8 起藏剑的蓄力加成也并进这个乘区，但它只作用于"本刀的主命中"（横扫目标不算）
+		boolean mainHit = target == this.enchantmentReforged$attackTarget;
+		float bladeBonus = mainHit ? EnchantmentEffects.hiddenBladeBonus(self) : 0.0F;
 		float finalAmount = amount * CombatFormulas.strengthMultiplier(self)
-				* EnchantmentEffects.revengeMultiplier(self);
+				* EnchantmentEffects.revengeMultiplier(self) * (1.0F + bladeBonus);
 		boolean hit = original.call(target, source, finalAmount);
+		// 电刀：主命中落地后启动链式弹射（基数就是这一刀的攻击侧金额；只对玩家生效）
+		if (mainHit && hit) {
+			ElectricArc.start(self, target, self.getMainHandStack(), finalAmount);
+		}
 		// 命中后效果统一走 SummyReliquaryCompat.settleHit：与 SR 兼容路径共用同一套口径与同一份诊断日志。
 		// （魔剑/嗜血恒定；主命中粒子与斩杀只在"主命中"；出其不意两条路径都掷）
 		SummyReliquaryCompat.settleHit("melee", self, self.getMainHandStack(), target, source,
 				amount, finalAmount, hit, true, true, target == this.enchantmentReforged$attackTarget);
 		return hit;
+	}
+
+	/**
+	 * 藏剑：一次近战挥砍结束时清空蓄力并进入冷却（含打空、砍空气）。
+	 *
+	 * <p>放在 {@code attack} 的 TAIL：此时主命中的加成已经被读取过，清空不会影响本刀伤害；
+	 * 而"打空也清空"正是这一附魔的代价。
+	 */
+	@Inject(method = "attack(Lnet/minecraft/entity/Entity;)V", at = @At("TAIL"))
+	private void enchantmentReforged$consumeHiddenBlade(Entity target, CallbackInfo ci) {
+		EnchantmentEffects.onHiddenBladeSwing(enchantmentReforged$self());
 	}
 
 	/**

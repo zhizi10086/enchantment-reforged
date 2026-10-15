@@ -38,11 +38,19 @@ public abstract class LivingEntityMixin {
 	 *
 	 * <p>放在 HEAD 且直接取消：虚空、指令等所有来源都能闪避，被闪避时连
 	 * 无敌帧、击退与受伤动画都不会产生。
+	 *
+	 * <p>1.3.8 起同一个注入点先判<b>闪身步</b>：裤子带该附魔时，原版 {@code #minecraft:is_projectile}
+	 * 标签内的伤害被完全免疫（末影人本体口径），并且因为是先判、直接取消，也不会消耗灵动步伐的随机数。
 	 */
 	@Inject(method = "damage(Lnet/minecraft/entity/damage/DamageSource;F)Z", at = @At("HEAD"), cancellable = true)
 	private void enchantmentReforged$nimbleStepsDodge(DamageSource source, float amount,
 			CallbackInfoReturnable<Boolean> cir) {
 		LivingEntity self = (LivingEntity) (Object) this;
+		if (EnchantmentEffects.isPhaseStepImmune(self, source)) {
+			EnchantmentEffects.spawnPhaseStepEffects(self);
+			cir.setReturnValue(false);
+			return;
+		}
 		if (EnchantmentEffects.rollNimbleSteps(self, source)) {
 			cir.setReturnValue(false);
 		}

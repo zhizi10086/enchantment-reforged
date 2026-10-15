@@ -1,11 +1,11 @@
 # Enchantment Reforged 全附魔总表
 
-> **适用版本**：1.3.7（Fabric 与 Forge 两树功能一致，只有映射名与少数客户端实现类不同，详见各节"实现位置"）。
+> **适用版本**：1.3.8（Fabric 与 Forge 两树功能一致，只有映射名与少数客户端实现类不同，详见各节"实现位置"）。
 > **数值口径**：文中数值都是**默认值**，实际以配置页或 `config/enchantment-reforged.json` 为准；配置键后的括号里写默认值。
 > **命名空间**：本模组所有附魔 id 都是 `enchantment_reforged:<id>`；语言键为 `enchantment.enchantment_reforged.<id>`。
 > 相关专题（铁砧、力量Plus、伤害管线与限伤、粒子与提示、兼容性）见文末「机制附录」。
 
-## 速览表（29 个）
+## 速览表（32 个）
 
 | id | 中文名（英文名） | 效果 | 目标 / 上限 | 宝藏·诅咒 | 互斥 | 主要配置键 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -38,6 +38,9 @@
 | `lightness` | 轻盈（Lightness） | 箭矢重力每级 -25%（总减重 ≤90%） | 弓 + 弩 / 3 | 否 | 无 | `enable_lightness`、`lightness_gravity_reduction_per_level` |
 | `sky_wish` | 破空之愿（Wish of the Sky） | 蓄力每 tick +5% 箭矢伤害，上限 +200% | 弓 / 1 | 宝藏 | 无 | `enable_sky_wish`、`sky_wish_bonus_per_tick`、`sky_wish_max_bonus`、`arrow_trait_hint_particles` |
 | `death_eye` | 死亡之眼（Death's Eye） | 命中累计 +25% × 层数（上限 8 层 = ×3.0） | 弓 + 弩 / 1 | 宝藏 | 无 | `enable_death_eye`、`death_eye_damage_per_stack`、`death_eye_max_stacks`、`arrow_trait_hint_particles` |
+| `phase_step` | 闪身步（Phase Step） | 完全免疫投射物伤害（末影人本体口径） | 裤子 / 1 | 宝藏 | 无 | `enable_phase_step` |
+| `hidden_blade` | 藏剑（Hidden Blade） | 未挥砍期间蓄力，下一刀最高 +400% | 仅剑 / 1 | 宝藏 | 无 | `enable_hidden_blade`、`hidden_blade_bonus_per_tick`、`hidden_blade_max_bonus`、`hidden_blade_cooldown_seconds` |
+| `electric_blade` | 电刀（Electric Blade） | 近战主命中后链式弹射 1~4 段，每段为前一段的 80% | 仅剑 / 4 | 否 | 无 | `enable_electric_blade`、`electric_blade_radius`、`electric_blade_damage_ratio`、`electric_blade_delay_ticks` |
 
 ## 附魔详表
 
@@ -302,6 +305,34 @@
 - **相关配置键**：`enable_death_eye`（开）、`death_eye_damage_per_stack`（0.25）、`death_eye_max_stacks`（8）（服务端）；提示粒子 `arrow_trait_hint_particles`（开，服务端，与破空之愿共用）。
 - **边界与实现位置**：层数按**射手**累计、跨武器共享，**死亡 / 重生 / 断线即清空**；穿透一箭多目标时每个目标各结算一次（后面目标吃更高层）。**清空规则（硬规则）**：只有这支箭**整段飞行未命中任何生物**且已插地/被移除时才清空（固定 100%）；**穿透命中过生物后落地不清空**；命中非生物实体（船、矿车等）算落空；清空时打一条按玩家 5 秒节流的日志。**层数达到上限时**在射手肩边每 tick 播 2 个附魔命中粒子（`ENCHANTED_HIT` 十字闪），与破空之愿的符文一眼可分，层数清零即停。实现：`PersistentProjectileEntityMixin`（命中/落空结算）+ `ArrowTraits` + `EnchantmentReforgedEvents`（提示粒子）。
 
+### 闪身步（`phase_step`）
+
+- **效果与公式**：穿在裤子上时**完全免疫投射物伤害**（不扣血、不进无敌帧、不会被击退）。
+- **目标 / 上限 / 稀有度**：裤子（`ARMOR_LEGS`），上限 **1**，VERY_RARE，**宝藏**。
+- **获取方式**：铁砧 / 随机战利品 / 创造书 / 命令。
+- **互斥**：无。
+- **相关配置键**：`enable_phase_step`（开，服务端）。
+- **边界与实现位置**：判定完全照搬末影人本体——只看伤害源是否在**原版标签** `#minecraft:is_projectile` 里（箭、雪球、鸡蛋、投掷三叉戟、火球等都算，整合包可用数据包改这个标签）；**喷溅药水的直击伤害不在该标签内，因此不免疫**；免疫时**不做传送**；不受 `#enchantment_reforged:no_dodge` 影响；与灵动步伐共存时**先判闪身步**，命中时不消耗灵动步伐的随机数。表现：命中瞬间在受击者身上播 8 个末影粒子（`PORTAL`），无音效。实现：`LivingEntityMixin` 的 `damage`/`hurt` HEAD 注入 + `EnchantmentEffects.isPhaseStepImmune`。
+
+### 藏剑（`hidden_blade`）
+
+- **效果与公式**：未挥砍期间每 tick 累积 **+2%**（`hidden_blade_bonus_per_tick` 0.02）下一刀的伤害加成，上限 **+400%**（`hidden_blade_max_bonus` 4.0，即默认 10 秒封顶）；加成作为**攻击侧乘子**与力量、复仇同乘区：`原版伤害 × 力量 × 复仇 × (1 + 藏剑加成)`。
+- **目标 / 上限 / 稀有度**：**严格只剑**，上限 **1**，VERY_RARE，**宝藏**。
+- **获取方式**：铁砧 / 随机战利品 / 创造书 / 命令；附魔台也会给剑产出（斧头不会，见下）。
+- **互斥**：无。
+- **相关配置键**：`enable_hidden_blade`（开）、`hidden_blade_bonus_per_tick`（0.02）、`hidden_blade_max_bonus`（4.0）、`hidden_blade_cooldown_seconds`（2）（均服务端作用域）；满额提示沿用共用开关 `arrow_trait_hint_particles`。
+- **边界与实现位置**：**只有主手持着带该附魔的剑时才累积**（离开主手暂停累积但**保留**已攒值）；**任何近战挥砍都清空并进入 2 秒冷却**（含打空、砍空气），冷却期间停止累积；只作用于**主命中**（横扫不加成），SR 斩击与投掷不参与；死亡 / 重生 / 断线清空。满额时在持有人身上每 tick 播 2 个暴击星（`CRIT`）提示，挥出后消失。实现：`PlayerEntityMixin`（主命中乘子 + `attack` TAIL 清空）+ `EnchantmentReforgedEvents`（每 tick 累积与提示）。
+
+### 电刀（`electric_blade`）
+
+- **效果与公式**：近战**主命中落地**后向附近目标**链式弹射**，段数 = 附魔等级（1~4 段，最多打 5 个目标）；每段伤害 = **攻击侧金额 × 0.8ⁿ**（`electric_blade_damage_ratio` 0.8），四段依次约 ×0.8 / ×0.64 / ×0.512 / ×0.41。
+- **目标 / 上限 / 稀有度**：**严格只剑**，上限 **4**，VERY_RARE，**非宝藏**（附魔台可产出，但只会给剑）。
+- **获取方式**：附魔台 / 铁砧 / 随机战利品 / 创造书 / 命令。
+- **互斥**：无。
+- **相关配置键**：`enable_electric_blade`（开）、`electric_blade_radius`（5.0）、`electric_blade_damage_ratio`（0.8）、`electric_blade_delay_ticks`（2）（均服务端作用域）。
+- **边界与实现位置**：**只对玩家的左键近战主命中生效**（生物带该附魔不弹射；SR 斩击与投掷不触发）；选目标是"以上一段命中实体为圆心、半径 5 格内**最近且本次链未命中过**的活体"（排除攻击者本人），找不到就结束；**基数取攻击侧金额**（含力量/复仇/藏剑加成，**不含**护甲减免、目标受伤倍率与魔剑追加），每段照常吃目标侧倍率与一层造成侧；**每段先清目标无敌帧**再打出，伤害源用原版 `playerAttack`；**每段各结算一次魔剑与嗜血**（定稿），但**不**触发斩杀、不出其不意、也不会再触发电刀；段间延迟 0.1 秒（默认 2 tick）由服务端队列推进，攻击者离线即终止；表现是沿线电火花（`ELECTRIC_SPARK`）+ 命中点小爆发，服务端广播。实现：`PlayerEntityMixin`（启动）+ `combat/ElectricArc`（队列）+ `EnchantmentReforgedEvents`（每 tick 推进）。
+- **叠加口径提醒**：4 级电刀 + 魔剑 5 级时，四段合计的魔剑追加 ≈ 主命中金额 × (0.8+0.64+0.512+0.41) × 0.08 × 5 ≈ **主命中金额的 94%**（嗜血同理按 ×0.19×等级 回血）；这是"每段各结算一次"的既定口径。
+
 ## 机制附录
 
 以下内容不是附魔，但会影响玩法与读数口径，配置页里都能找到对应条目（键名后括号是默认值，作用域默认"服务端"）。
@@ -353,9 +384,16 @@
 - **Backported Spears（矛）**：修复其玩家分支"基础伤害算两遍"导致的伤害翻倍；左键刺击额外吃力量Plus。未安装矛模组时兼容代码不介入。
 - **苹果皮（AppleSkin）**：大胃袋 HUD 使用**内置**的同款贴图，不装苹果皮也能看到金色描边；同时与"经典状态条"（Classic Bar）的 HUD 重绘兼容。
 
+### 赋能组新增机制（1.3.8）
+
+- **"严格只剑"有两处落地**：`SimpleEnchantment` 的"仅剑"清单负责铁砧、`/enchant`、创造书、随机战利品与村民附魔书；附魔台的候选另由 `EnchantmentHelperMixin` 过滤（原版附魔台只按 `EnchantmentTarget` / `EnchantmentCategory` 判定，光覆写 `isAcceptableItem` / `canEnchant` 挡不住斧头）。因此斧、三叉戟、矛都附不到藏剑与电刀。
+- **电刀的口径定稿**：基数 = 主命中的**攻击侧金额**（与 1.3.7 里魔剑"额外伤害只吃一层"的口径一致），因此不会出现"基数已含魔剑再乘一次"的平方；弹射段与主命中作用在**不同目标**上，同一个目标不会被电刀算两次；每段各结算一次魔剑/嗜血是刻意保留的。
+- **藏剑与电刀的叠加**：藏剑加成在攻击侧生效，所以电刀的弹射基数会**连同藏剑的蓄力加成一起**递减传导（不要把两者理解成互斥）。
+- **闪身步与灵动步伐**：闪身步是**确定性免疫**（不吃 `no_dodge` 豁免、不消耗随机数），灵动步伐仍是**按几率**闪避并受 `no_dodge` 标签约束；两者写在同一个受伤侧 HEAD 注入里，闪身步先判。
+
 ## 计数与口径声明
 
-- 附魔 **29** 个；配置 **90** 项，按功能域分成 **10 组**：核心机制 8 / 原版改动 5 / 武器附魔 12 / 弓弩与箭矢 12 / 生存与治疗 12 / 战斗状态 7 / 防御与耐久 7 / 食物与采集 7 / 粒子与特效 12 / 箭矢特性 8。
-- 网络协议版本 **9**；中英语言键各 **328** 条且一一对应。
-- 两树（Fabric `1.3.7` / Forge `1.3.7-forge`）**功能一致**，只是 Yarn / Mojang 映射名不同，Mixin 类名两树相同（Fabric 29 个、Forge 28 个）。客户端实现差异只有两处：**大胃袋 HUD**（Fabric `InGameHudMixin` 注入原版 HUD；Forge 改用 GUI overlay `ExtraHungerOverlay`）与**配置页入口**（Fabric 走 Mod Menu 的 `EnchantmentReforgedModMenu`，Forge 走模组列表里的"配置"按钮，即 `ConfigScreenHandler.ConfigScreenFactory`）。
-- 本文档以 **1.3.7 的代码**为准；改动数值后请按"注册代码 / 配置枚举 / 客户端 `EnchantmentDescriptions` / 两树 README 专题"逐字段回来核对。
+- 附魔 **32** 个；配置 **99** 项，按功能域分成 **11 组**：核心机制 8 / 原版改动 5 / 武器附魔 12 / 弓弩与箭矢 12 / 生存与治疗 12 / 战斗状态 7 / 防御与耐久 7 / 食物与采集 7 / 粒子与特效 12 / 箭矢特性 8 / 赋能 9。
+- 网络协议版本 **9**；中英语言键各 **356** 条且一一对应。
+- 两树（Fabric `1.3.8` / Forge `1.3.8-forge`）**功能一致**，只是 Yarn / Mojang 映射名不同，Mixin 类名两树相同（Fabric 30 个、Forge 29 个）。客户端实现差异只有两处：**大胃袋 HUD**（Fabric `InGameHudMixin` 注入原版 HUD；Forge 改用 GUI overlay `ExtraHungerOverlay`）与**配置页入口**（Fabric 走 Mod Menu 的 `EnchantmentReforgedModMenu`，Forge 走模组列表里的"配置"按钮，即 `ConfigScreenHandler.ConfigScreenFactory`）。
+- 本文档以 **1.3.8 的代码**为准；改动数值后请按"注册代码 / 配置枚举 / 客户端 `EnchantmentDescriptions` / 两树 README 专题"逐字段回来核对。

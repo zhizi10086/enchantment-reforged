@@ -43,6 +43,13 @@ public abstract class LivingEntityMixin {
 	private void enchantmentReforged$nimbleStepsDodge(DamageSource source, float amount,
 			CallbackInfoReturnable<Boolean> cir) {
 		LivingEntity self = (LivingEntity) (Object) this;
+		// 1.3.8：同一个注入点先判"闪身步"——裤子带该附魔时，原版 #minecraft:is_projectile 标签内的伤害
+		// 被完全免疫（末影人本体口径）；因为是先判、直接取消，也不会消耗灵动步伐的随机数
+		if (EnchantmentEffects.isPhaseStepImmune(self, source)) {
+			EnchantmentEffects.spawnPhaseStepEffects(self);
+			cir.setReturnValue(false);
+			return;
+		}
 		if (EnchantmentEffects.rollNimbleSteps(self, source)) {
 			cir.setReturnValue(false);
 		}

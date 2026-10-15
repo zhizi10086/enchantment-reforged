@@ -1,11 +1,11 @@
 # Enchantment Reforged
 
-本仓库是 **Forge 1.20.1（47.4.10）** 的移植工程，功能与原 Fabric 工程（同版本号 1.3.7）一致；
+本仓库是 **Forge 1.20.1（47.4.10）** 的移植工程，功能与原 Fabric 工程（同版本号 1.3.8）一致；
 两份源码因 Yarn 与 Mojang 官方映射不同而独立维护。
 
-Minecraft **1.20.1** 的附魔与机制改造模组：重做锋利与力量、铁砧改消耗经验点数，新增 29 个附魔（含锋利Plus）与 10 组配置页；并可选兼容矛 [Backported Spears](https://www.mcmod.cn/class/23213.html)。作者：**Summy**。
+Minecraft **1.20.1** 的附魔与机制改造模组：重做锋利与力量、铁砧改消耗经验点数，新增 32 个附魔（含锋利Plus）与 11 组配置页；并可选兼容矛 [Backported Spears](https://www.mcmod.cn/class/23213.html)。作者：**Summy**。
 
-> 📖 **全附魔总表（29 个附魔的公式、目标、互斥、配置键、边界与机制附录）见 [docs/enchantments.md](../docs/enchantments.md)**
+> 📖 **全附魔总表（32 个附魔的公式、目标、互斥、配置键、边界与机制附录）见 [docs/enchantments.md](../docs/enchantments.md)**
 
 ## Forge 版构建与移植说明
 
@@ -15,7 +15,7 @@ Minecraft **1.20.1** 的附魔与机制改造模组：重做锋利与力量、�
 | 构建 | ForgeGradle 6 + MixinGradle 0.7.38 + MixinExtras 0.5.5（jar-in-jar）+ 官方映射 |
 | JDK | 17（`gradle.properties` / 全局 `~/.gradle/gradle.properties` 指定） |
 | 构建命令 | `gradlew build` |
-| 产物 | `JAR/enchantment-reforged-forge/enchantment-reforged-1.3.7-forge.jar` |
+| 产物 | `JAR/enchantment-reforged-forge/enchantment-reforged-1.3.8-forge.jar` |
 
 构建相关的三个本地化处理（都在 `build.gradle` 内，注释有说明）：
 
@@ -32,6 +32,29 @@ Minecraft **1.20.1** 的附魔与机制改造模组：重做锋利与力量、�
 4. **`verifyMixinTargets`**：构建期自检（挂在 `check` 上，`gradlew build` 自动跑）。它做两件事：
    扫描全部 mixin 源码，确认注解里引用的每个 Minecraft 类都真实存在；确认每个 `method` / `@At target`
    字符串都能在 refmap 里查到映射。任何一条失败都会直接中断构建。
+
+### 1.3.8-forge 新增发布（三个新附魔：闪身步 / 藏剑 / 电刀）
+
+与 Fabric 端 1.3.8 同步（两侧逐行等价，仅映射名不同）：
+
+- **闪身步 `phase_step`**（裤子 / 1 级 / 宝藏）：完全免疫投射物伤害，判定照搬末影人本体（`DamageTypeTags.IS_PROJECTILE`
+  标签）；与灵动步伐写在同一个受伤侧 HEAD 注入里、**闪身步先判**（不消耗灵动步伐随机数）；命中瞬间播末影粒子（`PORTAL`）。
+  配置 `enable_phase_step`(开)。
+- **藏剑 `hidden_blade`**（仅剑 / 1 级 / 宝藏）：手持未挥砍时每 tick **+2%** 下一刀伤害、上限 **+400%**（10 秒封顶），
+  作为攻击侧乘子与力量/复仇同乘区；**任何近战挥砍都清空并进 2 秒冷却**（含打空），离开主手暂停累积但保留；
+  只作用于主命中；满额时播暴击星提示（沿用 `arrow_trait_hint_particles`）。配置 4 项（开 / 0.02 / 4.0 / 2 秒）。
+- **电刀 `electric_blade`**（仅剑 / 4 级 / 非宝藏）：近战主命中后链式弹射，段数 = 等级，每段伤害 = **攻击侧金额 × 0.8ⁿ**
+  （不含护甲减免与受伤倍率），每段先清无敌帧再打、**每段各结算一次魔剑与嗜血**（不触发斩杀/出其不意/再次电刀），
+  目标为上一段命中点 5 格内最近的未命中活体；段间 0.1 秒（2 tick）由服务端队列 `ElectricArc` 在 ServerTickEvent 推进；
+  沿线播 `ELECTRIC_SPARK` 电火花；只对玩家生效。配置 4 项（开 / 5.0 / 0.8 / 2 tick）。
+- **"严格只剑"**：`SimpleEnchantment` 的"仅剑"清单（铁砧 / `/enchant` / 创造书 / 随机战利品）+ 新增
+  `EnchantmentHelperMixin`（过滤附魔台候选，原版附魔台只按 `EnchantmentCategory` 判定）。
+- 计数：配置 **90 → 99**（新增第 11 组「赋能」9 项）；附魔 **29 → 32**；语言键中英各 **328 → 356**；
+  协议仍 9、无新数据文件；新增 mixin 1 个（`EnchantmentHelperMixin`）与新类 `combat/ElectricArc`。
+- 验证：`gradlew build` 通过（`verifyMixinTargets` 全绿，refmap 命中 `EnchantmentHelper#getAvailableEnchantmentResults`）；
+  无头 `runServer` 两轮（不装 SR / 装 deobf SR + Curios）都到 `Done`，日志出现
+  `Mixing EnchantmentHelperMixin ... into EnchantmentHelper`、`Mixing SummyReliquaryShadowDashMixin ... into ShadowDash`、`Mixing SpearItemCompatMixin ... into SpearItem`，零注入失败。
+- 产物：`enchantment-reforged-1.3.8-forge.jar`（1.3.7 保留）。
 
 ### 1.3.7-forge 新增发布（死神祝福造成侧全类型 + 轻盈 / 破空之愿 / 死亡之眼）
 
@@ -210,7 +233,7 @@ gradlew copySpearDevJar runServer   # 把矛的生产 jar 反转成 dev 映射�
 所以装了它之后每个我们的附魔都会多出一行形如 `enchantment.enchantment_reforged.xxx.description`
 的未翻译文本。处理方式：
 
-- 为 29 个附魔补齐 `enchantment.enchantment_reforged.<name>.desc` 语言键（中英各一句话静态简介）；
+- 为 32 个附魔补齐 `enchantment.enchantment_reforged.<name>.desc` 语言键（中英各一句话静态简介）；
 - 检测到 `enchdesc` 已加载时，附魔书不再默认展开我们的动态数值描述，改为按住 Shift 展开
   （装备本来就是按住 Shift），默认只由它渲染那行简介；
 - 未装 `enchdesc` 时行为完全不变。
@@ -381,9 +404,9 @@ Summy Reliquary: Apocrypha 的 `summy-reliquary-apocrypha:apoptosis_element`（�
 - `enable_strength_rework`：力量改为乘算，倍率 = 1 + 0.5 × 等级（力量Plus II = 2.0 倍）；药水/信标/蘑菇煲等来源都会被重定向到力量Plus。公式：`(基础 + 锋利) × 力量 × 暴击`（下界合金剑 + 锋利Plus II + 力量Plus II + 跳劈 = 33）。
 - `enable_protection_level_5`：开放原版保护 5 级（铁砧两个保护 IV → V）。
 
-## 附魔一览（29 个）
+## 附魔一览（32 个）
 
-下表是当前全部 29 个附魔的速览（"目标 / 上限"一栏照注册代码写死，具体数值仍以配置为准）；
+下表是当前全部 32 个附魔的速览（"目标 / 上限"一栏照注册代码写死，具体数值仍以配置为准）；
 更早期的逐版本说明见文末的发布记录。
 
 | 附魔 | 效果 | 目标 / 上限 |
@@ -417,6 +440,9 @@ Summy Reliquary: Apocrypha 的 `summy-reliquary-apocrypha:apoptosis_element`（�
 | 轻盈 | 箭矢重力每级 **-25%**（总减重最多 90%），弹道更平直 | 弓 + 弩 / 3 |
 | 破空之愿（宝藏） | 蓄力每 tick **+5%** 箭矢伤害，上限 **+200%**（40 tick 封顶，0 tick 起算） | 弓 / 1 |
 | 死亡之眼（宝藏） | 命中累计箭矢伤害 **+25% × 层数**（上限 8 层 = ×3.0）；整箭落空即清空层数 | 弓 + 弩 / 1 |
+| 闪身步（宝藏） | 穿裤子时**完全免疫投射物伤害**（按原版 `#minecraft:is_projectile` 标签判定；喷溅药水直击不免疫） | 裤子 / 1 |
+| 藏剑（宝藏） | 手持未挥砍时每 tick **+2%** 下一刀伤害（上限 **+400%**）；**挥砍即清空并进 2 秒冷却** | 仅剑 / 1 |
+| 电刀 | 近战主命中后**链式弹射**，每级 +1 段（最多 4 段），每段伤害为前一段的 **80%**，段间 0.1 秒 | 仅剑 / 4 |
 
 > 三叉戟兼容：**魔剑、嗜血、迅捷打击**可以附在三叉戟上；其中**魔剑与嗜血近战和投掷都生效**（投掷时按三叉戟本体的附魔等级结算）。锋利Plus 与斩首保持原版限制，不能附三叉戟。
 >
@@ -440,7 +466,7 @@ Summy Reliquary: Apocrypha 的 `summy-reliquary-apocrypha:apoptosis_element`（�
 
 ## 配置
 
-共 **90 项**（开关 + 主数值 + 档位），按功能域分成 **10 组**：**核心机制 8 / 原版改动 5 / 武器附魔 12 / 弓弩与箭矢 12 / 生存与治疗 12 / 战斗状态 7 / 防御与耐久 7 / 食物与采集 7 / 粒子与特效 12 / 箭矢特性 8**。图形配置页用顶部分类标签切换（标签一行放不下时自动分两行），一屏显示该组全部条目（不分页；窗口极矮时才启用滚轮滚动），底部是"重置全部 / 完成"。另有 2 个隐藏项（`sharpness_max_level`、`protection_max_level`）**只在配置文件里可改**，不出现在图形页与命令里。
+共 **99 项**（开关 + 主数值 + 档位），按功能域分成 **11 组**：**核心机制 8 / 原版改动 5 / 武器附魔 12 / 弓弩与箭矢 12 / 生存与治疗 12 / 战斗状态 7 / 防御与耐久 7 / 食物与采集 7 / 粒子与特效 12 / 箭矢特性 8 / 赋能 9**。图形配置页用顶部分类标签切换（标签一行放不下时自动分两行），一屏显示该组全部条目（不分页；窗口极矮时才启用滚轮滚动），底部是"重置全部 / 完成"。另有 2 个隐藏项（`sharpness_max_level`、`protection_max_level`）**只在配置文件里可改**，不出现在图形页与命令里。
 
 其中 **9 项是"客户端作用域"项**（`arrow_particle`、`arrow_particle_long_distance`、`arrow_particle_distance`、`melee_particle`、`melee_sweep_particle`、`melee_particle_effect`、`surprise_particle`、`death_particle`、`nimble_steps_sound`）：服务端不会同步它们、命令里也不提供，每名玩家在自己的配置页里各选各的；射出的箭/打出的近战会把攻击者的档位带给其他人看（详见 1.2.4 / 1.2.5 / 1.2.6 / 1.3.1 各节）。
 

@@ -8,6 +8,7 @@ import net.minecraft.world.item.enchantment.EnchantmentCategory;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.SwordItem;
 
 /**
  * 通用自定义附魔。
@@ -53,6 +54,11 @@ public class SimpleEnchantment extends Enchantment {
 	 */
 	@Override
 	public boolean canEnchant(ItemStack stack) {
+		// 1.3.8：藏剑与电刀严格只剑（铁砧、/enchant、创造书、随机战利品都走这里；
+		// 附魔台的候选另由 EnchantmentHelperMixin 过滤，因为那边只按 EnchantmentCategory 判定）
+		if (this.isSwordOnlyEnchantment()) {
+			return stack.getItem() instanceof SwordItem;
+		}
 		if (this.isTridentCompatible() && (stack.is(Items.TRIDENT) || SpearCompat.isSpear(stack))) {
 			return true;
 		}
@@ -79,6 +85,16 @@ public class SimpleEnchantment extends Enchantment {
 				|| this == ModEnchantments.QUICK_STRIKE
 				|| this == ModEnchantments.SURPRISE
 				|| this == ModEnchantments.EXECUTION;
+	}
+
+	/**
+	 * 仅限剑（1.3.8）：藏剑、电刀。
+	 *
+	 * <p>这里决定铁砧、{@code /enchant}、创造书与随机战利品；附魔台的候选由
+	 * {@code EnchantmentHelperMixin} 用同一个判定再过滤一次（附魔台只按 EnchantmentCategory 判定）。
+	 */
+	public boolean isSwordOnlyEnchantment() {
+		return this == ModEnchantments.HIDDEN_BLADE || this == ModEnchantments.ELECTRIC_BLADE;
 	}
 
 	/** 允许附到弩上的本模组弓类附魔 */

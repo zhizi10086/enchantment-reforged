@@ -2,6 +2,7 @@ package com.enchantmentreforged.event;
 
 import com.enchantmentreforged.combat.CombatFormulas;
 import com.enchantmentreforged.combat.ArrowTraits;
+import com.enchantmentreforged.combat.ElectricArc;
 import com.enchantmentreforged.combat.EnchantmentEffects;
 import com.enchantmentreforged.command.EnchantmentReforgedCommand;
 import com.enchantmentreforged.network.ConfigSync;
@@ -57,12 +58,16 @@ public final class EnchantmentReforgedEvents {
 		DeathParticles.onPlayerDeath(entity);
 		// 死亡之眼：死亡即清空层数（重生后重新累计）
 		ArrowTraits.clearPlayer(entity.getUUID());
+		// 藏剑：死亡即清空蓄力
+		EnchantmentEffects.clearHiddenBlade(entity.getUUID());
 	}
 
 	/** 重生（含死亡重生）：清掉生命护盾残留（原版会把吸收值带到新角色身上） */
 	private static void onPlayerClone(PlayerEvent.Clone event) {
 		if (event.isWasDeath()) {
 			EnchantmentEffects.clearLifeShield(event.getEntity());
+			// 藏剑：重生同样清零（死亡事件已清一次，这里做兜底）
+			EnchantmentEffects.clearHiddenBlade(event.getEntity().getUUID());
 		}
 	}
 
@@ -82,6 +87,8 @@ public final class EnchantmentReforgedEvents {
 			ParticlePreferences.clear(player.getUUID());
 			// 死亡之眼：断线即清空层数（重登不保留）
 			ArrowTraits.clearPlayer(player.getUUID());
+			// 藏剑：断线同样清空
+			EnchantmentEffects.clearHiddenBlade(player.getUUID());
 		}
 	}
 
@@ -100,6 +107,8 @@ public final class EnchantmentReforgedEvents {
 		EnchantmentEffects.verifyLifeShieldAttribute();
 		// 近战粒子的多 tick 余晖队列
 		MeleeParticles.tickBursts();
+		// 电刀：段与段之间的延迟队列
+		ElectricArc.tick();
 		int serverTicks = event.getServer().getTickCount();
 		for (ServerPlayer player : event.getServer().getPlayerList().getPlayers()) {
 			EnchantmentEffects.tickInstinctiveRelease(player);
@@ -109,6 +118,9 @@ public final class EnchantmentReforgedEvents {
 			ConfigSync.tickParticlePreferenceRequests(player, serverTicks);
 			// 死亡之眼：层数满时在射手身边持续播提示粒子（状态式，与是否正在射击无关）
 			EnchantmentEffects.tickDeathEyeFullHint(player);
+			// 藏剑：累积蓄力（主手持剑才涨）与满额提示
+			EnchantmentEffects.tickHiddenBlade(player);
+			EnchantmentEffects.tickHiddenBladeFullHint(player);
 			// 灵魂加护：每秒把"冷却效果"与服务端计时对齐
 			if (serverTicks % 20 == 0) {
 				EnchantmentEffects.syncSoulGraceCooldown(player);
@@ -120,5 +132,7 @@ public final class EnchantmentReforgedEvents {
 		MeleeParticles.clearBursts();
 		ParticlePreferences.clearAll();
 		ArrowTraits.clearAll();
+		EnchantmentEffects.clearHiddenBladeAll();
+		ElectricArc.clearAll();
 	}
 }

@@ -2,6 +2,7 @@ package com.enchantmentreforged.event;
 
 import com.enchantmentreforged.combat.EnchantmentEffects;
 import com.enchantmentreforged.combat.ArrowTraits;
+import com.enchantmentreforged.combat.ElectricArc;
 import com.enchantmentreforged.network.ConfigSync;
 import com.enchantmentreforged.particle.MeleeParticles;
 import com.enchantmentreforged.particle.DeathParticles;
@@ -35,12 +36,17 @@ public final class EnchantmentReforgedEvents {
 		ServerLivingEntityEvents.AFTER_DEATH.register((victim, source) -> DeathParticles.onPlayerDeath(victim));
 		// 死亡之眼：死亡即清空层数（重生后重新累计）
 		ServerLivingEntityEvents.AFTER_DEATH.register((victim, source) -> ArrowTraits.clearPlayer(victim.getUuid()));
+		// 藏剑：死亡即清空蓄力
+		ServerLivingEntityEvents.AFTER_DEATH.register((victim, source) ->
+				EnchantmentEffects.clearHiddenBlade(victim.getUuid()));
 
 		// 重生时清掉生命护盾残留（原版会把吸收值带到新角色身上）
 		ServerPlayerEvents.AFTER_RESPAWN.register((newPlayer, oldPlayer, alive) -> {
 			EnchantmentEffects.clearLifeShield(newPlayer);
 			// 死亡之眼：重生同样清零（死亡事件已清一次，这里做兜底）
 			ArrowTraits.clearPlayer(newPlayer.getUuid());
+			// 藏剑同理
+			EnchantmentEffects.clearHiddenBlade(newPlayer.getUuid());
 		});
 
 		// 断线时清掉忠诚投掷冷却的登记，避免长期服务器残留已下线的 UUID
@@ -50,16 +56,24 @@ public final class EnchantmentReforgedEvents {
 			EnchantmentEffects.clearSoulGraceCooldown(handler.getPlayer().getUuid());
 			// 死亡之眼：断线即清空层数（重登不保留）
 			ArrowTraits.clearPlayer(handler.getPlayer().getUuid());
+			// 藏剑：断线同样清空
+			EnchantmentEffects.clearHiddenBlade(handler.getPlayer().getUuid());
 		});
 
 		// 停服：箭矢特性表整体清空（箭是短命实体，跨存档没有意义）
-		ServerLifecycleEvents.SERVER_STOPPED.register(server -> ArrowTraits.clearAll());
+		ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
+			ArrowTraits.clearAll();
+			EnchantmentEffects.clearHiddenBladeAll();
+			ElectricArc.clearAll();
+		});
 
 		ServerTickEvents.END_SERVER_TICK.register(server -> {
 			// 首次 tick 自检一次：护盾属性是否真的挂到了玩家默认属性上
 			EnchantmentEffects.verifyLifeShieldAttribute();
 			// 近战粒子的多 tick 余晖队列
 			MeleeParticles.tickBursts();
+			// 电刀：段与段之间的延迟队列
+			ElectricArc.tick();
 			for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
 				EnchantmentEffects.tickInstinctiveRelease(player);
 				// 忠诚改版：假三叉戟一回收/超时就撤掉投掷冷却
@@ -68,6 +82,9 @@ public final class EnchantmentReforgedEvents {
 				ConfigSync.tickParticlePreferenceRequests(player, server.getTicks());
 				// 死亡之眼：层数满时在射手身边持续播提示粒子（状态式，与是否正在射击无关）
 				EnchantmentEffects.tickDeathEyeFullHint(player);
+				// 藏剑：累积蓄力（主手持剑才涨）与满额提示
+				EnchantmentEffects.tickHiddenBlade(player);
+				EnchantmentEffects.tickHiddenBladeFullHint(player);
 				// 灵魂加护：每秒把"冷却效果"与服务端计时对齐（喝牛奶清掉后会自动回来）
 				if (server.getTicks() % 20 == 0) {
 					EnchantmentEffects.syncSoulGraceCooldown(player);

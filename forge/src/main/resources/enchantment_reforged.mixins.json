@@ -11,6 +11,7 @@
     "BowItemMixin",
     "CrossbowItemMixin",
     "EnchantmentMixin",
+    "EnchantmentHelperMixin",
     "ExperienceOrbEntityMixin",
     "HungerManagerMixin",
     "InfinityEnchantmentMixin",

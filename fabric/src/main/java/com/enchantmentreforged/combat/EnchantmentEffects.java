@@ -29,6 +29,7 @@ import net.minecraft.entity.projectile.PersistentProjectileEntity;
 import net.minecraft.entity.projectile.ProjectileEntity;
 import net.minecraft.entity.projectile.TridentEntity;
 import net.minecraft.registry.tag.TagKey;
+import net.minecraft.registry.tag.DamageTypeTags;
 import net.minecraft.entity.damage.DamageType;
 import net.minecraft.item.BowItem;
 import net.minecraft.item.AxeItem;
@@ -1559,5 +1560,157 @@ public final class EnchantmentEffects {
 		}
 		victim.getWorld().playSound(null, victim.getX(), victim.getY() + 1.0D, victim.getZ(),
 				sound, SoundCategory.PLAYERS, 1.0F, 1.0F);
+	}
+
+	// ==================== 赋能：闪身步 / 藏剑（1.3.8） ====================
+
+	/**
+	 * 闪身步：这次伤害是否被"完全免疫投射物"吃掉。
+	 *
+	 * <p>判定与末影人本体一致——只看伤害源是否落在原版 {@code #minecraft:is_projectile} 标签里
+	 * （箭、雪球、鸡蛋、投掷三叉戟、火球等都算；喷溅药水的直击伤害不在该标签内，因此不免疫）。
+	 * 整合包可以用数据包改这个标签来调整范围。
+	 */
+	public static boolean isPhaseStepImmune(LivingEntity victim, DamageSource source) {
+		EnchantmentReforgedConfig config = EnchantmentReforgedConfig.get();
+		if (!config.enablePhaseStep || ModEnchantments.PHASE_STEP == null || source == null) {
+			return false;
+		}
+		if (legsLevel(victim, ModEnchantments.PHASE_STEP) <= 0) {
+			return false;
+		}
+		return source.isIn(DamageTypeTags.IS_PROJECTILE);
+	}
+
+	/** 闪身步生效时的表现：一小团末影粒子（轻量、无音效） */
+	public static void spawnPhaseStepEffects(LivingEntity entity) {
+		if (entity.getWorld() instanceof ServerWorld serverWorld) {
+			serverWorld.spawnParticles(ParticleTypes.PORTAL, entity.getX(), entity.getBodyY(0.6D), entity.getZ(),
+					8, 0.35D, 0.5D, 0.35D, 0.05D);
+		}
+	}
+
+	/** 裤子槽的附魔等级（构造期间装备容器还没建立，直接视为 0） */
+	public static int legsLevel(LivingEntity entity, Enchantment enchantment) {
+		if (entity.age <= 0) {
+			return 0;
+		}
+		return EnchantmentHelper.getLevel(enchantment, entity.getEquippedStack(EquipmentSlot.LEGS));
+	}
+
+	/**
+	 * 藏剑：玩家 UUID → {@code [已累积 tick, 冷却结束的 tick]}。
+	 *
+	 * <p>只在服务端维护：累积、挥砍清空、冷却都由服务端推进；客户端预测不参与伤害结算，
+	 * 所以客户端读到空表也不会算错（造成伤害的是服务端）。
+	 */
+	private static final Map<UUID, long[]> HIDDEN_BLADE_STATE = new ConcurrentHashMap<>();
+
+	/** 藏剑封顶所需的累积 tick（配置不可用时返回 -1） */
+	public static int hiddenBladeFullTicks(EnchantmentReforgedConfig config) {
+		if (config == null || config.hiddenBladeBonusPerTick <= 0.0F || config.hiddenBladeMaxBonus <= 0.0F) {
+			return -1;
+		}
+		return Math.max(1, (int) Math.ceil(config.hiddenBladeMaxBonus / config.hiddenBladeBonusPerTick));
+	}
+
+	/**
+	 * 藏剑当前加成（0 = 开关关闭 / 没装 / 还没累积）。
+	 *
+	 * <p>加成 = min(每 tick 累积 × 已累积 tick, 上限)，因此默认 2%/tick、10 秒封顶 +400%。
+	 */
+	public static float hiddenBladeBonus(LivingEntity entity) {
+		EnchantmentReforgedConfig config = EnchantmentReforgedConfig.get();
+		if (!config.enableHiddenBlade || ModEnchantments.HIDDEN_BLADE == null || entity == null) {
+			return 0.0F;
+		}
+		long[] state = HIDDEN_BLADE_STATE.get(entity.getUuid());
+		if (state == null || state[0] <= 0L) {
+			return 0.0F;
+		}
+		float bonus = (float) (state[0] * (double) config.hiddenBladeBonusPerTick);
+		return Math.min(bonus, config.hiddenBladeMaxBonus);
+	}
+
+	/**
+	 * 藏剑：服务端每 tick 推进——主手持着带该附魔的剑时累积（离开主手暂停但保留），
+	 * 冷却期间停止累积；冷却结束后从 0 重新开始。
+	 */
+	public static void tickHiddenBlade(PlayerEntity player) {
+		EnchantmentReforgedConfig config = EnchantmentReforgedConfig.get();
+		if (player == null || !config.enableHiddenBlade || ModEnchantments.HIDDEN_BLADE == null) {
+			return;
+		}
+		long now = player.getWorld().getTime();
+		long[] state = HIDDEN_BLADE_STATE.computeIfAbsent(player.getUuid(), key -> new long[2]);
+		int fullTicks = hiddenBladeFullTicks(config);
+		if (fullTicks <= 0) {
+			return;
+		}
+		if (now < state[1]) {
+			// 冷却中：不累积（自己的累积已经在挥砍时清零）
+			return;
+		}
+		if (state[1] != 0L) {
+			state[1] = 0L;
+		}
+		if (EnchantmentHelper.getLevel(ModEnchantments.HIDDEN_BLADE, player.getMainHandStack()) <= 0) {
+			// 不在主手：暂停累积，但已攒的层数保留
+			return;
+		}
+		if (state[0] < fullTicks) {
+			state[0]++;
+		}
+	}
+
+	/** 藏剑满额提示：按共用开关在持有人身上每 tick 播 2 个暴击星（与箭矢特性的两处提示区分） */
+	public static void tickHiddenBladeFullHint(PlayerEntity player) {
+		EnchantmentReforgedConfig config = EnchantmentReforgedConfig.get();
+		if (player == null || !config.arrowTraitHintParticles || !config.enableHiddenBlade
+				|| ModEnchantments.HIDDEN_BLADE == null) {
+			return;
+		}
+		if (EnchantmentHelper.getLevel(ModEnchantments.HIDDEN_BLADE, player.getMainHandStack()) <= 0) {
+			return;
+		}
+		long[] state = HIDDEN_BLADE_STATE.get(player.getUuid());
+		int fullTicks = hiddenBladeFullTicks(config);
+		if (state == null || fullTicks <= 0 || state[0] < fullTicks) {
+			return;
+		}
+		if (player.getWorld() instanceof ServerWorld serverWorld) {
+			serverWorld.spawnParticles(ParticleTypes.CRIT, player.getX(), player.getBodyY(0.8D), player.getZ(),
+					2, 0.3D, 0.4D, 0.3D, 0.02D);
+		}
+	}
+
+	/**
+	 * 藏剑：一次近战挥砍结束时调用（含打空）——清空累积并进入冷却。
+	 *
+	 * <p>只有主手拿着带该附魔的剑时才清空/进冷却，避免"拿着别的武器挥砍"把攒好的层数打掉。
+	 */
+	public static void onHiddenBladeSwing(PlayerEntity player) {
+		EnchantmentReforgedConfig config = EnchantmentReforgedConfig.get();
+		if (player == null || !config.enableHiddenBlade || ModEnchantments.HIDDEN_BLADE == null) {
+			return;
+		}
+		if (EnchantmentHelper.getLevel(ModEnchantments.HIDDEN_BLADE, player.getMainHandStack()) <= 0) {
+			return;
+		}
+		long[] state = HIDDEN_BLADE_STATE.computeIfAbsent(player.getUuid(), key -> new long[2]);
+		state[0] = 0L;
+		state[1] = player.getWorld().getTime() + Math.max(0, config.hiddenBladeCooldownSeconds) * 20L;
+	}
+
+	/** 藏剑：死亡 / 重生 / 断线清空某位玩家 */
+	public static void clearHiddenBlade(UUID playerId) {
+		if (playerId != null) {
+			HIDDEN_BLADE_STATE.remove(playerId);
+		}
+	}
+
+	/** 藏剑：停服清表 */
+	public static void clearHiddenBladeAll() {
+		HIDDEN_BLADE_STATE.clear();
 	}
 }
