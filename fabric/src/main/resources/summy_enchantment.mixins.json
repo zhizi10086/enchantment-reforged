@@ -1,0 +1,40 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.summy.enchantment.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "mixins": [
+    "AnvilScreenHandlerMixin",
+    "ArrowEntityMixin",
+    "BlockMixin",
+    "BowItemMixin",
+    "CrossbowItemMixin",
+    "EnchantmentMixin",
+    "EnchantmentHelperMixin",
+    "ExperienceOrbEntityMixin",
+    "HungerManagerMixin",
+    "InfinityEnchantmentMixin",
+    "ItemMixin",
+    "ItemStackMixin",
+    "LivingEntityMixin",
+    "MobEntityMixin",
+    "PersistentProjectileEntityMixin",
+    "PlayerEntityMixin",
+    "ProtectionEnchantmentMixin",
+    "ServerPlayerEntityMixin",
+    "TridentItemMixin",
+    "TridentEntityMixin"
+  ],
+  "client": [
+    "AnvilScreenMixin",
+    "ArrowParticleClientMixin",
+    "ArrowEntityParticleClientMixin",
+    "ClientPlayerEntityMixin",
+    "HeldItemRendererMixin",
+    "InGameHudMixin",
+    "SpectralArrowEntityParticleClientMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

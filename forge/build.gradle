@@ -1,4 +1,4 @@
-// Enchantment Reforged —— Forge 1.20.1（47.4.10）版本
+// Summy Enchantment —— Forge 1.20.1（47.4.10）版本
 // 由 Fabric 版（同版本号 1.3.4）移植而来，源码独立维护（Yarn 与 Mojang 官方映射不同）。
 buildscript {
     repositories {
@@ -81,12 +81,12 @@ minecraft {
 
 mixin {
     // AP 生成 refmap
-    add sourceSets.main, 'enchantment-reforged.refmap.json'
+    add sourceSets.main, 'summy-enchantment.refmap.json'
     // 声明 mixin 配置：MixinGradle 会在 dev 运行参数里注册它们（否则 runServer 跑的是
     // 完全没有 mixin 的"空壳"，冒烟结果不可信），同时也会写进 jar 的 MixinConfigs。
-    config 'enchantment_reforged.mixins.json'
-    config 'enchantment_reforged.spears.mixins.json'
-    config 'enchantment_reforged.summy_reliquary.mixins.json'
+    config 'summy_enchantment.mixins.json'
+    config 'summy_enchantment.spears.mixins.json'
+    config 'summy_enchantment.summy_reliquary.mixins.json'
 }
 
 // ForgeGradle 的 jarJar 默认是关闭的：显式打开，MixinExtras 才会作为嵌套 jar 打进产物
@@ -176,7 +176,7 @@ processResources {
     // 因此这里把编译期生成的 refmap 也复制进资源目录，否则 runServer/runClient 会报
     // "The specified resource 'xxx.mixins.json' was invalid or could not be read"。
     dependsOn 'patchRefmap'
-    from("${buildDir}/tmp/compileJava/enchantment-reforged.refmap.json") {
+    from("${buildDir}/tmp/compileJava/summy-enchantment.refmap.json") {
         into ''
     }
 }
@@ -191,27 +191,27 @@ tasks.withType(JavaCompile).configureEach {
 // 于是 refmap 缺这几条 → 生产环境匹配不上、dev 环境也无法反向重映射。
 // 这里在编译结束后手工把映射补进 refmap（值取自 build/createMcpToSrg/output.tsrg）。
 def extraRefmapEntries = [
-        'com/enchantmentreforged/mixin/AnvilScreenMixin'              : [
+        'com/summy/enchantment/mixin/AnvilScreenMixin'              : [
                 'Lnet/minecraft/network/chat/Component;translatable(Ljava/lang/String;[Ljava/lang/Object;)Lnet/minecraft/network/chat/MutableComponent;':
                         'Lnet/minecraft/network/chat/Component;m_237110_(Ljava/lang/String;[Ljava/lang/Object;)Lnet/minecraft/network/chat/MutableComponent;'
         ],
-        'com/enchantmentreforged/mixin/ArrowEntityParticleClientMixin': [
+        'com/summy/enchantment/mixin/ArrowEntityParticleClientMixin': [
                 'Lnet/minecraft/world/level/Level;addParticle(Lnet/minecraft/core/particles/ParticleOptions;DDDDDD)V':
                         'Lnet/minecraft/world/level/Level;m_7106_(Lnet/minecraft/core/particles/ParticleOptions;DDDDDD)V'
         ],
-        'com/enchantmentreforged/mixin/SpectralArrowEntityParticleClientMixin': [
+        'com/summy/enchantment/mixin/SpectralArrowEntityParticleClientMixin': [
                 'Lnet/minecraft/world/level/Level;addParticle(Lnet/minecraft/core/particles/ParticleOptions;DDDDDD)V':
                         'Lnet/minecraft/world/level/Level;m_7106_(Lnet/minecraft/core/particles/ParticleOptions;DDDDDD)V'
         ],
-        'com/enchantmentreforged/mixin/BowItemMixin'                   : [
+        'com/summy/enchantment/mixin/BowItemMixin'                   : [
                 'Lnet/minecraft/world/level/Level;addFreshEntity(Lnet/minecraft/world/entity/Entity;)Z':
                         'Lnet/minecraft/world/level/Level;m_7967_(Lnet/minecraft/world/entity/Entity;)Z'
         ],
-        'com/enchantmentreforged/mixin/CrossbowItemMixin'              : [
+        'com/summy/enchantment/mixin/CrossbowItemMixin'              : [
                 'Lnet/minecraft/world/level/Level;addFreshEntity(Lnet/minecraft/world/entity/Entity;)Z':
                         'Lnet/minecraft/world/level/Level;m_7967_(Lnet/minecraft/world/entity/Entity;)Z'
         ],
-        'com/enchantmentreforged/mixin/TridentItemMixin'               : [
+        'com/summy/enchantment/mixin/TridentItemMixin'               : [
                 'Lnet/minecraft/world/level/Level;addFreshEntity(Lnet/minecraft/world/entity/Entity;)Z':
                         'Lnet/minecraft/world/level/Level;m_7967_(Lnet/minecraft/world/entity/Entity;)Z'
         ]
@@ -222,7 +222,7 @@ tasks.register('patchRefmap') {
     dependsOn tasks.named('compileJava')
     outputs.upToDateWhen { false }
     doLast {
-        def refmapFile = file("${buildDir}/tmp/compileJava/enchantment-reforged.refmap.json")
+        def refmapFile = file("${buildDir}/tmp/compileJava/summy-enchantment.refmap.json")
         if (!refmapFile.exists()) {
             return
         }
@@ -245,7 +245,7 @@ tasks.register('patchRefmap') {
         }
         if (touched) {
             refmapFile.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(json))
-            logger.lifecycle("[Enchantment Reforged] 已补充 refmap 映射（接口继承成员）")
+            logger.lifecycle("[Summy Enchantment] 已补充 refmap 映射（接口继承成员）")
         }
     }
 }
@@ -287,8 +287,8 @@ tasks.register('verifyMixinTargets') {
     description = '校验 mixin 注解里的 Minecraft 类名与 refmap 覆盖是否完整'
     dependsOn 'patchRefmap'
 
-    def mixinDir = file('src/main/java/com/enchantmentreforged/mixin')
-    def refmapFile = file("${buildDir}/tmp/compileJava/enchantment-reforged.refmap.json")
+    def mixinDir = file('src/main/java/com/summy/enchantment/mixin')
+    def refmapFile = file("${buildDir}/tmp/compileJava/summy-enchantment.refmap.json")
     inputs.dir(mixinDir)
     inputs.file(refmapFile)
     outputs.upToDateWhen { false }
@@ -427,7 +427,7 @@ tasks.register('verifyMixinTargets') {
                     return
                 }
                 def targetInternal = targetMatch.group(1).replace('.', '/')
-                def byMixin = mappings["com/enchantmentreforged/mixin/$cls"] ?: [:]
+                def byMixin = mappings["com/summy/enchantment/mixin/$cls"] ?: [:]
 
                 def methodKeys = (text =~ /method\s*=\s*"([^"]+)"/).collect { it[1] } as Set
                 def atTargets = (text =~ /target\s*=\s*"(L[^"]+)"/).collect { it[1] } as Set
@@ -462,7 +462,7 @@ tasks.register('verifyMixinTargets') {
             }
 
             // 2) method / @At target 字符串必须能在 refmap 里查到映射
-            def keys = mappings["com/enchantmentreforged/mixin/$cls"]?.keySet() ?: ([] as Set)
+            def keys = mappings["com/summy/enchantment/mixin/$cls"]?.keySet() ?: ([] as Set)
             def used = (text =~ /(?:method|target)\s*=\s*"([^"]+)"/).collect { it[1] } as Set
             used.each { s ->
                 if (s.startsWith('Lcom/') || s.startsWith('Lorg/')) {
@@ -477,7 +477,7 @@ tasks.register('verifyMixinTargets') {
         if (!problems.isEmpty()) {
             throw new GradleException('verifyMixinTargets 失败：\n  - ' + problems.join('\n  - '))
         }
-        logger.lifecycle("[Enchantment Reforged] mixin 注入目标校验通过（${mixinDir.listFiles().length} 个文件）")
+        logger.lifecycle("[Summy Enchantment] mixin 注入目标校验通过（${mixinDir.listFiles().length} 个文件）")
     }
 }
 
@@ -499,18 +499,18 @@ jar {
                 'Implementation-Version': project.mod_version,
                 'Implementation-Vendor' : 'Summy'
         ])
-        // 注意：配置文件本身是下划线命名（enchantment_reforged.mixins.json），写错成连字符会导致 Mixin 读不到
-        attributes 'MixinConfigs': 'enchantment_reforged.mixins.json,enchantment_reforged.spears.mixins.json,enchantment_reforged.summy_reliquary.mixins.json'
+        // 注意：配置文件本身是下划线命名（summy_enchantment.mixins.json），写错成连字符会导致 Mixin 读不到
+        attributes 'MixinConfigs': 'summy_enchantment.mixins.json,summy_enchantment.spears.mixins.json,summy_enchantment.summy_reliquary.mixins.json'
     }
     from('LICENSE') {
         rename { "${it}_${project.base.archivesName.get()}" }
     }
 }
 
-// 构建结束后把 reobf 后的 jar 复制到固定的发布目录（项目外的 ../JAR/enchantment-reforged-forge）
+// 构建结束后把 reobf 后的 jar 复制到固定的发布目录（项目外的 ../JAR/summy-enchantment-forge）
 tasks.named('build') {
     doLast {
-        def releaseDir = file('../JAR/enchantment-reforged-forge')
+        def releaseDir = file('../JAR/summy-enchantment-forge')
         releaseDir.mkdirs()
         // 开启 JarJar 后，真正可发布的产物是 reobfJarJar（含嵌套的 MixinExtras）
         def reobfTask = tasks.findByName('reobfJarJar') ?: tasks.named('reobfJar').get()

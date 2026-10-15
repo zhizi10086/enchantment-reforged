@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "id": "enchantment_reforged",
+  "id": "summy_enchantment",
   "version": "${version}",
-  "name": "Enchantment Reforged",
+  "name": "Summy Enchantment",
   "description": "重做锋利与力量、铁砧改消耗经验点数，新增 32 个附魔；兼容矛 Backported Spears 1.4.7 并修复其伤害翻倍（百科链接见下方链接区）。",
   "authors": [
     "Summy"
@@ -11,7 +11,7 @@
   "custom": {
     "modmenu": {
       "links": {
-        "enchantment_reforged.link.spear_wiki": "https://www.mcmod.cn/class/23213.html"
+        "summy_enchantment.link.spear_wiki": "https://www.mcmod.cn/class/23213.html"
       }
     }
   },
@@ -19,19 +19,19 @@
   "environment": "*",
   "entrypoints": {
     "main": [
-      "com.enchantmentreforged.EnchantmentReforged"
+      "com.summy.enchantment.SummyEnchantment"
     ],
     "client": [
-      "com.enchantmentreforged.client.EnchantmentReforgedClient"
+      "com.summy.enchantment.client.SummyEnchantmentClient"
     ],
     "modmenu": [
-      "com.enchantmentreforged.client.EnchantmentReforgedModMenu"
+      "com.summy.enchantment.client.SummyEnchantmentModMenu"
     ]
   },
   "mixins": [
-    "enchantment_reforged.mixins.json",
-    "enchantment_reforged.spears.mixins.json",
-    "enchantment_reforged.summy_reliquary.mixins.json"
+    "summy_enchantment.mixins.json",
+    "summy_enchantment.spears.mixins.json",
+    "summy_enchantment.summy_reliquary.mixins.json"
   ],
   "depends": {
     "fabricloader": ">=0.18.4",

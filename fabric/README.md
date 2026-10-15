@@ -1,4 +1,4 @@
-# Enchantment Reforged
+# Summy Enchantment
 
 Minecraft **1.20.1** / Fabric 的附魔与机制改造模组：重做锋利与力量、铁砧改消耗经验点数，新增 32 个附魔（含锋利Plus）与 11 组配置页；并可选兼容矛 [Backported Spears](https://www.mcmod.cn/class/23213.html)。作者：**Summy**。
 
@@ -32,10 +32,10 @@ Minecraft **1.20.1** / Fabric 的附魔与机制改造模组：重做锋利与�
 
 `enchdesc`（mod id `enchdesc`）会在每个附魔的名字行后面**无条件**插入 `<附魔ID>.desc` 的描述文本；
 两个候选键都不存在时它也不会跳过，客户端会把原始键名当文本渲染。我们的描述键一直是
-`tooltip.enchantment_reforged.desc.*`，它的语言文件里也没有任何 `enchantment_reforged` 键，
+`tooltip.summy_enchantment.desc.*`，它的语言文件里也没有任何 `summy_enchantment` 键，
 所以装了它之后每个我们的附魔都会多出一行未翻译的键名。处理方式（与 Forge 版一致）：
 
-- 为 32 个附魔补齐 `enchantment.enchantment_reforged.<name>.desc` 语言键（中英各一句话静态简介）；
+- 为 32 个附魔补齐 `enchantment.summy_enchantment.<name>.desc` 语言键（中英各一句话静态简介）；
 - 检测到 `enchdesc` 已加载（`FabricLoader.isModLoaded("enchdesc")`）时，附魔书不再默认展开我们的
   动态数值描述，改为按住 Shift 展开（装备本来就是按住 Shift），默认只由它渲染那行简介；
 - 未装 `enchdesc` 时行为完全不变。
@@ -58,7 +58,7 @@ SR 有两处自造的近战伤害（暗仪刺刀「遁入暗影」的两段斩�
   也不再发它们的粒子（嗜血仍按本次伤害结算，击杀照常回血），消除"只有粒子、没有伤害"的假象；
 - **出其不意的粒子只在二次伤害确实落地后才播**（与左键近战同一口径）；
 - **诊断日志**：把"调试日志"（`debug_logs`，默认**关**）打开后，每次近战结算都会打一行
-  `[ER-SR] strike|heavySlash|thrownSpear|melee | …`，含原始金额、乘区（力量 × 复仇）、手持武器上的
+  `[SE-SR] strike|heavySlash|thrownSpear|melee | …`，含原始金额、乘区（力量 × 复仇）、手持武器上的
   魔剑/斩杀/出其不意**与藏剑等级·当前蓄力 tick（等效加成）**、魔剑/嗜血/斩杀/出其不意的实际结果、
   `hurt` 返回值、目标血量与四项粒子档位——用来在实机上一眼判断某个附魔到底有没有生效（每 tick 最多 8 行、同内容去重）；
 - SR 只产出 Forge 版 jar（Fabric 侧靠 Kilt / Connector 运行），`libs/summy-reliquary-1.8.5-forge.jar`
@@ -70,9 +70,9 @@ SR 有两处自造的近战伤害（暗仪刺刀「遁入暗影」的两段斩�
 箭矢轨迹只作用于"我们认可的箭"。判定集中在 `ArrowParticleTrails#isArrow` 一处，**客户端本地渲染与服务端
 远距离代发共用同一份判定**，优先级从高到低：
 
-1. **包含标签** `#enchantment_reforged:arrow_particles` 命中 → 一定介入（默认值 = `#minecraft:arrows` 实体标签 +
+1. **包含标签** `#summy_enchantment:arrow_particles` 命中 → 一定介入（默认值 = `#minecraft:arrows` 实体标签 +
    Summy Reliquary: Apocrypha 的落箭 `summy-reliquary-apocrypha:new_testament_arrow`，两项都带 `required:false`）；
-2. **排除标签** `#enchantment_reforged:no_arrow_particles` 命中 → 保持原版（整合包用它踢掉个别投掷物，例如某个模组的标枪）；
+2. **排除标签** `#summy_enchantment:no_arrow_particles` 命中 → 保持原版（整合包用它踢掉个别投掷物，例如某个模组的标枪）；
 3. **原版箭 / 光灵箭** → 恒定介入（写死在代码里：联机时客户端的标签会被服务器下发的标签包覆盖）；
 4. **代码内固定排除**：原版三叉戟（`TridentEntity`）与 `summy-reliquary:thrown_spear` → 不介入
    （同样写死在代码里，标签丢失也不会误伤）；
@@ -93,12 +93,12 @@ SR 有两处自造的近战伤害（暗仪刺刀「遁入暗影」的两段斩�
 接口就装在这个家族上。像 Iron's Spells 的 `AbstractMagicProjectile`、TaCZ 的子弹这类**自造投掷物基类**不在其中，
 本次不扩到 `Projectile` 基类；原版三叉戟与已知长矛类投掷物保持"非箭类投掷物不介入"的既有口径。
 
-## 不可闪避的伤害类型（`#enchantment_reforged:no_dodge`）
+## 不可闪避的伤害类型（`#summy_enchantment:no_dodge`）
 
 「灵动步伐」原本对所有伤害来源一视同仁地掷点（虚空、指令同样可以闪避）。现在多了一层**伤害类型标签豁免**：
 
 - 判定点在 `EnchantmentEffects#rollNimbleSteps(LivingEntity, DamageSource)`，**第一步**就检查
-  `source.isIn(#enchantment_reforged:no_dodge)` —— 命中就直接返回"未闪避"，连配置与附魔等级都不查；
+  `source.isIn(#summy_enchantment:no_dodge)` —— 命中就直接返回"未闪避"，连配置与附魔等级都不查；
 - 需要"完全无法被闪避"的伤害（例如**元素伤害**这类按设定必须落地的效果）由**提供方**把自己的伤害类型
   加进 `data/<你的数据包>/tags/damage_type/no_dodge.json` 即可，`/reload` 生效、不需要改本模组代码；
 - 该判断**只在伤害事件里执行一次**，命中标签时也不会播放闪避音效、不消耗任何随机数。
@@ -136,7 +136,7 @@ Summy Reliquary: Apocrypha 的 `summy-reliquary-apocrypha:apoptosis_element`（�
   TNT、火焰、爆炸等**间接**伤害不吃（它们的直接来源是方块/环境，不是玩家）。
 - **自伤不吃造成侧**（`attacker == victim` 只吃受伤侧，例如自己射自己、跳劈）。
 - **排除定值真伤**：新增标签
-  `#enchantment_reforged:no_deaths_blessing_outgoing`（`data/enchantment_reforged/tags/damage_type/no_deaths_blessing_outgoing.json`，
+  `#summy_enchantment:no_deaths_blessing_outgoing`（`data/summy_enchantment/tags/damage_type/no_deaths_blessing_outgoing.json`，
   `replace:false` + 每项 `required:false`），默认写死 SR 的 11 个（`holy_light` / `revelation_light` / `godhead_aura` /
   `holy_light_burst` / `hellfire` / `demon_flame` / `pact_shatter` / `abyss_aura` / `golden_razor` / `sacrifice` /
   `sacrifice_self`）与 SRA 的 3 个（`apoptosis_element` / `holy_arrow` / `new_testament_arrow`）。
@@ -173,7 +173,7 @@ Summy Reliquary: Apocrypha 的 `summy-reliquary-apocrypha:apoptosis_element`（�
   **穿透命中过生物后落地一律不清空**（这是与"每支箭落地都清一次"最关键的差别，也是验收重点）；
   命中非生物实体（船 / 矿车等）算落空。
   层数被清空时会打一条节流日志（同一玩家 5 秒最多一条）：
-  `[ER] 死亡之眼（玩家名）：整箭落空 → 清空（原 5 层）`。
+  `[SE] 死亡之眼（玩家名）：整箭落空 → 清空（原 5 层）`。
 - **两处「到顶」提示粒子**（共用开关 `arrow_trait_hint_particles`，默认开，服务端生成、附近玩家都看得到）：
   破空之愿满蓄力时在**射手身上**持续播附魔符文（`ENCHANT`，每 tick 2 个）；死亡之眼**只要层数达上限**就在
   **射手肩边**持续播附魔命中粒子（`ENCHANTED_HIT`，每 tick 2 个），与是否正在射击无关、层数清零即停。
@@ -193,7 +193,7 @@ Summy Reliquary: Apocrypha 的 `summy-reliquary-apocrypha:apoptosis_element`（�
 | 疾矢 | 箭矢初速度 × (1 + 10% × 等级) | 弓 / 5 |
 | 速射 | 满蓄力时间每级 -0.1 秒（客户端拉弓动画同步） | 弓 / 5 |
 | 本能释放 | 弓拉满即自动射出并立刻开始下一次蓄力（宝藏） | 弓 / 1 |
-| 生命护盾 | 回复生命时获得回复量 20% × 等级 的伤害吸收，上限为最大生命值 20% × 等级；**护盾值存在属性 `enchantment_reforged:life_shield`**，黄心由原版吸收显示，与其它来源**相加** | 胸甲 / 5 |
+| 生命护盾 | 回复生命时获得回复量 20% × 等级 的伤害吸收，上限为最大生命值 20% × 等级；**护盾值存在属性 `summy_enchantment:life_shield`**，黄心由原版吸收显示，与其它来源**相加** | 胸甲 / 5 |
 | 生命提升 | 每级 +1 最大生命，4 件盔甲等级相加（最多 +20） | 4 件盔甲 / 5 |
 | 嗜血 | 回复造成伤害 8% × 等级 的生命 | 剑斧、三叉戟 / 3 |
 | 经验学者 | **仅经验球拾取**时经验 +10% × 等级 | 头盔 / 3 |
@@ -235,9 +235,9 @@ Summy Reliquary: Apocrypha 的 `summy-reliquary-apocrypha:apoptosis_element`（�
 
 ## 创造模式物品页与附魔书说明
 
-- 新增独立物品页「Enchantment Reforged 附魔书」，里面是本模组每个附魔的满级附魔书，共 **26** 本。
+- 新增独立物品页「Summy Enchantment 附魔书」，里面是本模组每个附魔的满级附魔书，共 **26** 本。
 - 本模组的附魔书在物品提示里会附带效果说明，**数值随配置实时变化**，并且是"该等级的总效果（每级效果）"两个数值——例如锋利Plus 的 3 级书显示"攻击伤害 +4.5（每级 +1.5）"，这样不同等级的书描述互不相同。
-- 生命护盾**不再占用效果栏、也不显示图标**（1.3.1 起）：护盾值存在属性 `enchantment_reforged:life_shield` 里，可用 `/attribute @s enchantment_reforged:life_shield get` 查看；界面上只体现为原版吸收的黄心。
+- 生命护盾**不再占用效果栏、也不显示图标**（1.3.1 起）：护盾值存在属性 `summy_enchantment:life_shield` 里，可用 `/attribute @s summy_enchantment:life_shield get` 查看；界面上只体现为原版吸收的黄心。
 
 ## 配置
 
@@ -245,17 +245,17 @@ Summy Reliquary: Apocrypha 的 `summy-reliquary-apocrypha:apoptosis_element`（�
 
 其中 **9 项是"客户端作用域"项**（`arrow_particle`、`arrow_particle_long_distance`、`arrow_particle_distance`、`melee_particle`、`melee_sweep_particle`、`melee_particle_effect`、`surprise_particle`、`death_particle`、`nimble_steps_sound`）：服务端不会同步它们、命令里也不提供，每名玩家在自己的配置页里各选各的；射出的箭/打出的近战会把攻击者的档位带给其他人看（详见 1.2.4 / 1.2.5 / 1.2.6 / 1.3.1 各节）。
 
-三种改法：Mod Menu 图形页、游戏内命令、直接编辑 `config/enchantment_reforged.json`。
+三种改法：Mod Menu 图形页、游戏内命令、直接编辑 `config/summy_enchantment.json`。
 
 ```
-/enchantmentreforged status              查看全部配置
-/enchantmentreforged set <键> <值>       修改并立即保存
-/enchantmentreforged reset               恢复默认
+/summyenchantment status              查看全部配置
+/summyenchantment set <键> <值>       修改并立即保存
+/summyenchantment reset               恢复默认
 ```
 
-短别名 `/er`。每行都有"单项重置"（值等于默认时自动变灰）与悬停详细说明；联机时客户端自动同步服务端配置（只改内存，退出后恢复本地配置）。
+短别名 `/se`。每行都有"单项重置"（值等于默认时自动变灰）与悬停详细说明；联机时客户端自动同步服务端配置（只改内存，退出后恢复本地配置）。
 
-全部键按组列出（括号里是默认值；等价于 `/er status` 的输出内容）：
+全部键按组列出（括号里是默认值；等价于 `/se status` 的输出内容）：
 
 - **核心机制**：`enable_anvil_xp_cost`、`anvil_max_cost_level`(**30**)、`enable_custom_sharpness`、`sharpness_damage_per_level`(1.5)、`enable_strength_rework`、`strength_multiplier_per_level`(**0.5**)、`apply_strength_to_mobs`。
 - **原版改动**：`enable_protection_level_5`、`enable_impaling_bedrock_rule`、`enable_infinity_mending`、`enable_crossbow_compat`、`enable_loyalty_rework`。
@@ -283,13 +283,13 @@ Summy Reliquary: Apocrypha 的 `summy-reliquary-apocrypha:apoptosis_element`（�
 - `TridentEntityMixin` + `PlayerEntityMixin`：三叉戟近战与投掷的穿刺按"接触水或淋雨"判定（替换生物类型复用原版加成）；投掷命中补上魔剑/嗜血；承载"假三叉戟"标记（飞回只消失不复制）。
 - `TridentItemMixin`：忠诚改版——投掷不取走本体、给飞出去的打上假三叉戟标记、有忠诚三叉戟在飞时拒绝再次投掷。
 - 事件：斩首用 `AFTER_DEATH`；本能释放用服务端/客户端 tick。
-- 生命护盾（1.3.3 起）：护盾值存在玩家属性 `enchantment_reforged:life_shield` 里（1.3.1 用它取代了原来的状态效果），随玩家 NBT 持久化；`LivingEntityMixin#tick` 每 tick 只做两件事——按上限/配置/附魔等级裁剪（**只扣我方那一份**）与消耗记账，回血时只把**我方增量**加到原版吸收池上，绝不重写总量。
+- 生命护盾（1.3.3 起）：护盾值存在玩家属性 `summy_enchantment:life_shield` 里（1.3.1 用它取代了原来的状态效果），随玩家 NBT 持久化；`LivingEntityMixin#tick` 每 tick 只做两件事——按上限/配置/附魔等级裁剪（**只扣我方那一份**）与消耗记账，回血时只把**我方增量**加到原版吸收池上，绝不重写总量。
 - 箭矢粒子：`ArrowParticleClientMixin`（客户端段）在 `PersistentProjectileEntity#tick` 上屏蔽原版暴击星并生成轨迹粒子；`PersistentProjectileEntityMixin` 把"射手档位"写进箭的原版同步字节空余高位（不新增同步字段）；`ConfigSync.PARTICLE_CHANNEL` 负责客户端上报、服务端按 UUID 记录（`ParticlePreferences`）。
 - 箭矢粒子（1.2.5）：`ArrowEntityParticleClientMixin` / `SpectralArrowEntityParticleClientMixin`（客户端段）屏蔽药水箭颜色漩涡、插地消散爆发与光灵箭闪粒；`ArrowParticleTrails.tickServerTrail` 在服务端为开启远距离显示的观者逐玩家代发粒子；`ConfigSync.PARTICLE_REQUEST_CHANNEL` 是"服务端索要偏好"的通道，客户端回报 `[档位, 远距离开关, 半径]`。
 - 近战粒子（1.2.6）：`MeleeParticles` 在服务端逐玩家代发；`PlayerEntityMixin` 取消原版 `addCritParticles` / `spawnSweepAttackParticles` 并在同一位置生成配置的粒子（`melee_particle` 走普通/暴击命中，`melee_sweep_particle` 走横扫）；矛左键刺击在 `SpearItemCompatMixin` 的命中点一并生成。
 - 附魔台可用性（1.3.0）：不改原版随机池规则，只靠"诅咒但非宝藏"这一既有事实让恶咒 / 生命修补 / 死者之心可以被附魔；宝藏附魔不参与随机。
 - 大胃袋与 HUD（1.3.0）：`HungerManagerMixin` 抬高饥饿值与饱和度上限、`HungerOwner` 让玩家侧读到本模组的上限，`InGameHudMixin`（客户端）在饥饿条上方额外画一行（满/半/空 + 金色饱和度描边，贴图内置 `textures/gui/appleskin_icons.png`）。
-- 斩杀（1.3.0）：`PlayerEntityMixin` + `TridentEntityMixin` 在命中点判断目标生命 ≤ `execution_threshold` 时用自定义伤害类型 `enchantment_reforged:execution` 补刀（挂在 `minecraft:bypasses_armor` / `bypasses_enchantments` 上，攻击者仍是玩家，掉落与经验照常）。
+- 斩杀（1.3.0）：`PlayerEntityMixin` + `TridentEntityMixin` 在命中点判断目标生命 ≤ `execution_threshold` 时用自定义伤害类型 `summy_enchantment:execution` 补刀（挂在 `minecraft:bypasses_armor` / `bypasses_enchantments` 上，攻击者仍是玩家，掉落与经验照常）。
 - 防御与生存附魔（1.3.0）：`LivingEntityMixin` 负责速食、死者之心、复仇、灵动步伐；`ItemStackMixin` 承载不死者加护（主手或副手拿不死图腾时最终伤害 -`undying_grace_damage_reduction`，只生效一层、不注册状态效果，只在图腾提示里加一行）；`MobEntityMixin` 让生物侧的复仇同样成立；`DeathParticles` 负责玩家死亡粒子。
 - 灵魂加护（1.3.1）：免死表现固定在服务端做（图腾音效 + 60 颗 `TOTEM_OF_UNDYING`），冷却权威是服务端计时表，`effect/SoulGraceStatusEffect` 只作可见 buff，每 20 tick 对齐一次，所以喝牛奶、`/effect clear`、死亡都绕不过冷却。
 - 近战原版粒子屏蔽（1.2.6 覆盖发布）：`ClientPlayerEntityMixin` 取消本机预测的 CRIT / ENCHANTED_HIT，`ServerPlayerEntityMixin` 取消服务端向附近玩家广播的动画 4/5（这两条才是"无论怎么设置都还看得见暴击星"的原因）；受伤云 `DAMAGE_INDICATOR` 在档位 ≥1 时同点跳过。
@@ -297,7 +297,7 @@ Summy Reliquary: Apocrypha 的 `summy-reliquary-apocrypha:apoptosis_element`（�
 
 ## 数据包示例
 
-`examples/datapack/enchantment_reforged_example/`：用 `enchant_randomly` 显式列表只给新附魔、`enchant_with_levels` 按等级生成、物品标签语法参考（1.20.1 没有附魔标签，无法用标签改上限或互斥）。
+`examples/datapack/summy_enchantment_example/`：用 `enchant_randomly` 显式列表只给新附魔、`enchant_with_levels` 按等级生成、物品标签语法参考（1.20.1 没有附魔标签，无法用标签改上限或互斥）。
 
 ## 构建
 
@@ -305,7 +305,7 @@ Summy Reliquary: Apocrypha 的 `summy-reliquary-apocrypha:apoptosis_element`（�
 gradlew build
 ```
 
-产物：`build/libs/enchantment-reforged-1.3.3.jar`，构建结束后会自动复制到 `../JAR/enchantment-reforged/`。
+产物：`build/libs/summy-enchantment-1.3.3.jar`，构建结束后会自动复制到 `../JAR/summy-enchantment/`。
 
 > `libs/spear-backport-fabric-1.4.7-1.20.1.jar` 是矛模组的 jar（CC0 许可），**只在编译期**用作兼容 Mixin 的目标类校验，不会打进本模组；删掉它会导致构建时 Mixin 注解处理器找不到目标类。
 
@@ -319,7 +319,7 @@ gradlew build
 6. 自动熔炼：矿石→锭、沙子→玻璃、黏土块→砖、与精准采集不能共存、潜行时恢复普通掉落。
 7. 速射动画与满蓄力时间一致；本能释放可连续自动射击；疾矢飞得更快。
 8. 斩首各生物出对应头颅、杀玩家出头带皮肤、末影龙无效、概率随等级 10/20/30%。
-9. 79 项配置在 9 个分类间切换、每组一屏可见、单项/全部重置有效、命令 `/er status` 按组输出；档位项（粒子、效果强度、闪避音效）是滑块，拖动松手才写盘。
+9. 79 项配置在 9 个分类间切换、每组一屏可见、单项/全部重置有效、命令 `/se status` 按组输出；档位项（粒子、效果强度、闪避音效）是滑块，拖动松手才写盘。
 10. 弩：可附合并生效力量/无限/火矢/冲击；附魔台/铁砧可同时给"无限 + 经验修补"；穿刺对泡水/淋雨生物生效、水里乘船无效。
 11. 生命护盾：4 件生命提升 V（最大生命 40）+ 生命护盾 V 时，黄心正好 **20 颗**（不再多出半颗）。
 12. 忠诚：投掷后本体仍在物品栏、假三叉戟飞回时只消失、快捷栏出现投掷冷却；冷却结束后（或把三叉戟扔到 64 格外、投掷后立刻死亡重生）应立即能再投；连续投掷 20 次背包里始终只有一把；冷却期间左键近战正常；关闭开关后恢复原版。
@@ -333,7 +333,7 @@ gradlew build
 ## 已知限制
 
 - 铁砧 `cost` 字段语义变为"经验点数"（其它模组若直接读 `getLevelCost()` 可能显示差异）。
-- **生命护盾与其它吸收来源是"纯加法"关系**（1.3.3 起）：护盾值自身存在属性 `enchantment_reforged:life_shield` 里（随玩家 NBT 持久化，`/attribute @s enchantment_reforged:life_shield get` 可查），写入吸收池时**只加我方增量**、消耗时**只扣我方那一份**，池子被别的模组抬高时只跟随记录、不夺权重写。因此「原版吸收 + 生命护盾 + 其它模组（例如饰品模组的魂心黄血）」稳定相加。护盾部分始终夹在「最大生命 × 20% × 等级」以内，数值量化到半颗心、上限向下取半颗心（避免 HUD 多画一颗）。1.3.2 之前这里会重写总量，可能把别人的吸收抹掉，详见对应发布记录。
+- **生命护盾与其它吸收来源是"纯加法"关系**（1.3.3 起）：护盾值自身存在属性 `summy_enchantment:life_shield` 里（随玩家 NBT 持久化，`/attribute @s summy_enchantment:life_shield get` 可查），写入吸收池时**只加我方增量**、消耗时**只扣我方那一份**，池子被别的模组抬高时只跟随记录、不夺权重写。因此「原版吸收 + 生命护盾 + 其它模组（例如饰品模组的魂心黄血）」稳定相加。护盾部分始终夹在「最大生命 × 20% × 等级」以内，数值量化到半颗心、上限向下取半颗心（避免 HUD 多画一颗）。1.3.2 之前这里会重写总量，可能把别人的吸收抹掉，详见对应发布记录。
 - 生命护盾属性的挂载依赖玩家默认属性表：若其它模组在 `FabricDefaultAttributeRegistry` 之后也注册了玩家默认属性，会以它的为准；服务端首次 tick 会打一行自检日志（`生命护盾属性已挂到玩家默认属性：true/false`），失败时护盾安全退化、不会崩。
 - 忠诚改版的"返回前不能再次投掷"按"玩家 64 格内、飞行不超过 30 秒的假三叉戟"判断，超时/飞出范围/实体消失都会立即放行，**任何情况下都不会永久无法投掷**；超过 60 秒未回收的假三叉戟会被清除（本体始终在玩家处，不构成物品损失）。
 - 力量Plus 改为命中时倍率后，属性面板不再显示它带来的攻击力；其它模组用 `hasStatusEffect(StatusEffects.STRENGTH)` 判断力量将不再命中。
@@ -366,7 +366,7 @@ gradlew build
 ## 1.1.5 文案与体验
 
 - 配置页所有开关项描述去掉了"开关："前缀并整体压缩，过长的说明都收敛到一句。
-- 开启忠诚改版时，忠诚附魔书与带忠诚的三叉戟都会多一行提示："已被 Enchantment Reforged 修正，现在再也不会丢了"。
+- 开启忠诚改版时，忠诚附魔书与带忠诚的三叉戟都会多一行提示："已被 Summy Enchantment 修正，现在再也不会丢了"。
 - 投掷后快捷栏的三叉戟会显示**投掷冷却**（原版物品冷却，最长 30 秒）：冷却期间右键不能投掷，假三叉戟一回收就立刻恢复；**左键近战照常**。
 - 代码清理：删除未使用的 import 与死接口方法、把生命护盾记账缓存的两个槽简化为一个、移除没有任何选项使用的 `INTEGER` 配置类型及其分支。
 
@@ -388,11 +388,11 @@ gradlew build
 
 ## 1.2.1 描述格式与链接调整
 
-- **Mod Menu 链接**：撤掉指向别的 MOD 页面的"网站"按钮（`contact.homepage`），改用 `custom.modmenu.links` + 我们自己的语言键 `enchantment_reforged.link.spear_wiki`，在详情页"链接："区显示一条**自己命名**的可点击链接"Backported Spears 百科页"（与矛 MOD 那条"源码"同样呈现）。配置页内部不再放链接（那条已删除），描述里的提示改为"百科链接见下方链接区"。
+- **Mod Menu 链接**：撤掉指向别的 MOD 页面的"网站"按钮（`contact.homepage`），改用 `custom.modmenu.links` + 我们自己的语言键 `summy_enchantment.link.spear_wiki`，在详情页"链接："区显示一条**自己命名**的可点击链接"Backported Spears 百科页"（与矛 MOD 那条"源码"同样呈现）。配置页内部不再放链接（那条已删除），描述里的提示改为"百科链接见下方链接区"。
 - **描述标点**：配置页的悬停说明与全部附魔描述统一去掉末尾句号。
 - **附魔描述格式**：装备上的描述改为 `[附魔名+罗马等级]当前等级描述`，例如 `[魔剑V]额外造成本次攻击 40% 的魔法伤害`；删掉了原来尾部的"（每级 +x）"，只保留当前等级对应的数值。上限只有 1 级的附魔不标等级（如 `[恶咒]、[自动熔炼]、[死神祝福]`）；**附魔书不带中括号前缀**，只显示描述本身。
 - **死神祝福**：悬停**正穿在身上**的那件（与玩家装备槽里同一个栈）时显示**此刻实时值**，如 `[死神祝福]已损失 12% 生命：造成伤害 ×1.12、受到伤害 ×1.14`；悬停附魔书或其它位置的备用装备时保持原来的系数文案 `受到的伤害 +20%；每损失 1% 生命：造成伤害 +1%、受到伤害 -0.5%`。两个倍率的公式抽到 `EnchantmentEffects.deathsBlessingOutgoingAt/IncomingAt`，战斗结算与描述共用同一处，避免数值口径分叉。
-- 产物：`enchantment-reforged-1.2.1.jar`（1.2.0 保留）。
+- 产物：`summy-enchantment-1.2.1.jar`（1.2.0 保留）。
 
 ## 1.2.2 六个新附魔与箭矢行为修正
 
@@ -418,7 +418,7 @@ gradlew build
 ### 配置与产物
 
 - 新增 **防御与耐久** 分组（生命修补 2 + 坚甲 3 + 镀层 2），另有多重射击与药水箭相关 3 项进入正版附魔组、幻影箭与无尽箭袋 3 项进入远程与采集组；总条目 36 → **51**，共 6 组。（1.3.1 起为 **9 组 / 79 项**，见顶部「配置」章节。）
-- 产物：`enchantment-reforged-1.2.2.jar`（1.2.1 及更早保留）。
+- 产物：`summy-enchantment-1.2.2.jar`（1.2.1 及更早保留）。
 
 ## 1.2.3 坚甲公式、弓散布与文案精简
 
@@ -434,7 +434,7 @@ gradlew build
 - **箭矢粒子（新增 `arrow_particle`，13 档，全部是原版粒子）**：0 原版默认 / 1 无粒子 / 2 火焰 / 3 灵魂火 / 4 末地烛 / 5 电火花 / 6 附魔符文 / 7 龙息 / 8 图腾 / 9 灵魂 / 10 小火焰 / 11 附魔命中 / 12 烟花。档位 ≥1 时屏蔽原版暴击星粒子（**只影响粒子，不影响暴击伤害**），≥2 时生成飞行轨迹粒子，箭落地即停；作用于**所有箭矢**（含骷髅与发射器射出的箭），三叉戟不变。
 - **每名玩家各自设置、彼此可见且互不干扰**：该项是客户端作用域（服务端配置不同步它，命令里也不提供）。客户端进服与每次改动时把自己的档位上报给服务端，服务端在箭生成时把**射手的档位**写进箭本体，于是 A 看 B 射的箭＝B 选的粒子、B 看 A 的箭＝A 选的粒子，双方各自的设置不会改变对方射出的箭；没有射手档位的箭（生物、发射器、未装本模组的玩家）按**观者自己的设置**渲染。单人世界不受影响，设回 0 即完全恢复原版。
 - 配置页该行在选项名后用灰字显示当前档位名（如"箭矢粒子 5 电火花"），悬停时列出全部 13 档名称并标出当前项。
-- 产物：`enchantment-reforged-1.2.4.jar`（1.2.3 及更早保留）。
+- 产物：`summy-enchantment-1.2.4.jar`（1.2.3 及更早保留）。
 
 ## 1.2.5 幻影箭档位继承、同步及时性与远距离显示
 
@@ -443,7 +443,7 @@ gradlew build
 - **新增：箭矢粒子远距离显示**（`arrow_particle_long_distance` 默认关 + `arrow_particle_distance` 默认 512、范围 16–512）。客户端只同步 64 格内的箭，再远就没有实体、本地轨迹自然断掉；开启后改由**服务端逐玩家代发**粒子（`force=true`，上限 512 格），因此远处的箭也能看到轨迹。粒子类型仍优先用射手的档位，射手档位未知时用观者自己的档位；档位 0/1 不发。开启时该玩家不再本地渲染轨迹（避免两份重影）；旧版服务端下开关自动视为无效、保持本地渲染。
 - **禁用药水箭 / 光灵箭的自带粒子**：药水箭飞行的颜色漩涡（`ArrowEntity#spawnParticles`）、插地 30 秒后的消散爆发（`ArrowEntity#handleStatus`）与光灵箭的闪粒（`SpectralArrowEntity#tick`）都无法被替换，现在**仅当该箭的有效档位 ≥1**（非"原版默认"）时全部不生成；档位设回 0 即完全恢复原版。箭入水的气泡属于所有箭共有的原版表现，保持不动。
 - 配置项 53 → **55**（箭矢与弩组 5 → 7），全部仍为客户端作用域（服务端不同步、命令不提供）。
-- 产物：`enchantment-reforged-1.2.5.jar`（1.2.4 及更早保留）。
+- 产物：`summy-enchantment-1.2.5.jar`（1.2.4 及更早保留）。
 
 ## 1.2.6 近战粒子、性能优化与默认半径 128
 
@@ -455,7 +455,7 @@ gradlew build
 - **性能优化**（审查结论落地）：客户端的 `updateEquipmentAttributes`/`applyCalamity` 现在直接跳过（属性本来由服务端同步，省掉所有可见实体每 tick 的冗余计算）；服务端每支箭的远距离代发在"没人开启远距离"时立刻返回；`ArrowParticleStyle.byIndex` 不再每次克隆枚举数组；坚甲/镀层的部位遍历改用静态常量数组；`SHIELD_TRACK` 换成线程安全表（单人世界客户端+服务端共用 JVM）；忠诚投掷冷却的登记在断线时清理；配置单例加 `volatile`。
 - **远距离显示默认半径 512 → 128**（只改默认值：已存在的配置文件里写着的值保持不变，需要时在配置页改或点单项重置）。
 - 配置项 55 → **57**（近战附魔组 10 → 12），其中粒子类共 5 项均为客户端作用域。
-- 产物：`enchantment-reforged-1.2.6.jar`（1.2.5 及更早保留）。
+- 产物：`summy-enchantment-1.2.6.jar`（1.2.5 及更早保留）。
 
 ### 1.2.6 覆盖发布：修复原版近战粒子屏蔽 + 强度三档
 
@@ -486,7 +486,7 @@ gradlew build
 - **出其不意的额外粒子**：新增 `surprise_particle`（13 档，**默认 2 火焰**，客户端作用域）；触发瞬间在目标处额外爆发一次，**强度沿用 `melee_particle_effect` 三档**；0/1 档不生成。
 - **玩家死亡粒子**：新增 `enable_death_particle`（默认开）与 `death_particle`（13 档，**默认 12 烟花**，客户端作用域）；只对玩家生效，在死亡位置一次性爆发 48 颗（扩散 0.8、初速 0.35，固定强度），类型取死者的档位、死者未上报时用观者的档位；可见范围沿用"32 格内 + 观者远距离开关"。
 - 配置项 58 → **62**（核心 7 / 原版 5 / 箭矢与弩 7 / 近战 14 / 远程 11 / 生存 11 / 防御 7）；中英语言各 201 → **208** 键；C2S 粒子载荷扩到 8 个字段（协议 7）。（1.3.1 起为 **9 组 / 79 项、中英各 270 键**，见顶部「配置」章节。）
-- 产物：`enchantment-reforged-1.2.7.jar`（1.2.6 及更早保留）。
+- 产物：`summy-enchantment-1.2.7.jar`（1.2.6 及更早保留）。
 
 ## 1.3.0 七个新附魔、配置页 10 组、斩杀死亡信息与大胃袋 HUD
 
@@ -502,8 +502,8 @@ gradlew build
 | 灵魂加护 `soul_grace` | 胸甲 / 1 / 宝藏 | 死亡时取消死亡：**满血 + 清全部负面 + 2 秒抗性**，冷却 180 秒（服务端计时） |
 | 灵动步伐 `nimble_steps` | 靴子 / 3 / 宝藏 | 每次受伤按 **5% × 等级**几率完全无效化该伤害（虚空、指令同样可闪避），闪避时有音效 |
 
-- **斩杀与掉落**：补刀用自定义伤害类型 `enchantment_reforged:execution`（数据文件 `data/enchantment_reforged/damage_type/execution.json`），攻击者仍是你，所以**掉落、经验与抢夺照常结算**；该伤害类型同时挂在 `minecraft:bypasses_armor` / `bypasses_enchantments` 上，避免"必杀一击顺手把对方盔甲打碎"。伤害量取 `(当前生命 + 吸收) × 5 + 10`，能穿掉抗性药水最高 80% 的减免，又不会污染装备耐久与统计数值。
-- **斩杀的死亡信息**：语言键 `death.attack.enchantment_reforged.execution`（`XX 被斩杀`）与 `...execution.player`（`XX 被 YY 斩杀`），只影响玩家死亡文本。
+- **斩杀与掉落**：补刀用自定义伤害类型 `summy_enchantment:execution`（数据文件 `data/summy_enchantment/damage_type/execution.json`），攻击者仍是你，所以**掉落、经验与抢夺照常结算**；该伤害类型同时挂在 `minecraft:bypasses_armor` / `bypasses_enchantments` 上，避免"必杀一击顺手把对方盔甲打碎"。伤害量取 `(当前生命 + 吸收) × 5 + 10`，能穿掉抗性药水最高 80% 的减免，又不会污染装备耐久与统计数值。
+- **斩杀的死亡信息**：语言键 `death.attack.summy_enchantment.execution`（`XX 被斩杀`）与 `...execution.player`（`XX 被 YY 斩杀`），只影响玩家死亡文本。
 - **大胃袋**：自然回血仍按原版 `饥饿值 ≥ 20` 判定；饥饿值上限只影响"能吃多少 / 能存多少饱和度"。
 - **灵魂加护的取舍**：冷却为服务端运行期计时，重登可绕过；与恶咒同时穿戴时，复活后血量会被恶咒压回 1。（1.3.1 起冷却带可见 buff，但权威仍是服务端计时表。）
 - **复仇的范围**：仅剑 / 斧 / 三叉戟的**近战**伤害（不含弓、空手与矛模组的矛），加成作用于最终伤害。
@@ -517,7 +517,7 @@ gradlew build
 ### 大胃袋的 HUD（内置金框贴图）
 
 - 在**饥饿条上方单独画一行**（最多 10 格）：额外饥饿值用**原版同款饥饿图标**（满 / 半 / 空，含"饥饿效果"的绿色变体）；额外饱和度在同一行叠加**金色描边**，覆盖率 4 档（UV `u=0/9/18/27, v=0`）。
-- **描边贴图内置**：`assets/enchantment_reforged/textures/gui/appleskin_icons.png`（256×256，与 AppleSkin 2.5.2 的 `assets/appleskin/textures/icons.png` **逐字节一致**，该贴图为 Unlicense，可自由分发），所以**不装 AppleSkin 也会显示金框**，装了则两行风格完全一致。
+- **描边贴图内置**：`assets/summy_enchantment/textures/gui/appleskin_icons.png`（256×256，与 AppleSkin 2.5.2 的 `assets/appleskin/textures/icons.png` **逐字节一致**，该贴图为 Unlicense，可自由分发），所以**不装 AppleSkin 也会显示金框**，装了则两行风格完全一致。
 - 为什么必须自己画：AppleSkin 的饱和度渲染对 `20` 硬夹并在只有 10 格的位置表上取值，**无法表达"20 以上的饱和度"**。
 - 位置细节：原版饥饿条的左半边是盔甲行、右半边是水泡行，所以额外行放在饥饿条上一行（右半边不会与盔甲冲突）；当前有水泡行时再让开一行。骑乘生物（原版不画饥饿条）或额外饥饿值为 0 时不画。
 
@@ -536,28 +536,28 @@ gradlew build
 | 粒子与特效 | 9 | 箭矢粒子 3、近战粒子 3、出其不意粒子、死亡粒子 2 |
 | 采集与经验 | 3 | 自动熔炼、经验学者 2 |
 
-- 只改**显示名与分组位置**：配置文件的键名、`/er set`、`/er status` 的写法都不变（`status` 按新组顺序输出）。
+- 只改**显示名与分组位置**：配置文件的键名、`/se set`、`/se status` 的写法都不变（`status` 按新组顺序输出）。
 
 ### 版本与计数
 
 - 配置项 62 → **78**（组序 7/5/12/12/12/7/5/6/9/3）；中英语言各 208 → **259** 键；创造物品页 19 → **26** 本附魔书。（1.3.1 起为 **9 组 / 79 项、中英各 270 键**，见顶部「配置」章节。）
 - 新增数据文件与资源：斩杀伤害类型、`minecraft:bypasses_armor` / `bypasses_enchantments` 标签补充、内置金框贴图。
 - 新增/扩展 Mixin：`HungerManagerMixin`（大胃袋）、`InGameHudMixin`（客户端 HUD）；`LivingEntityMixin`（速食 / 死者之心 / 复仇 / 灵动步伐）、`PlayerEntityMixin`（斩杀 / 复仇 / 饥饿组件主人）、`TridentEntityMixin`（投掷斩杀）扩展。
-- 产物：`enchantment-reforged-1.3.0.jar`（1.2.7 及更早保留）。
+- 产物：`summy-enchantment-1.3.0.jar`（1.2.7 及更早保留）。
 
 ## 1.3.1 生命护盾属性化、灵魂加护免死表现、档位滑块与复仇修复
 
 ### 生命护盾改为玩家属性（不再占用 buff）
 
-- 新注册属性 `enchantment_reforged:life_shield`（默认 0、范围 0–2048，**不参与属性同步**）。护盾值存在属性基础值里，随玩家 NBT 持久化，可用 `/attribute @s enchantment_reforged:life_shield get` 查看。
+- 新注册属性 `summy_enchantment:life_shield`（默认 0、范围 0–2048，**不参与属性同步**）。护盾值存在属性基础值里，随玩家 NBT 持久化，可用 `/attribute @s summy_enchantment:life_shield get` 查看。
 - 挂载方式：玩家的默认属性表在游戏 bootstrap 阶段就已经建好（**早于**模组初始化，所以"往 createPlayerAttributes() 返回值里追加"的钩子拿到的是空属性），因此改用 Fabric 的 `FabricDefaultAttributeRegistry` 注册一份以 `PlayerEntity.createPlayerAttributes()` 为底、只多一条护盾属性的玩家默认属性。若其它模组在此之后也注册玩家默认属性，会以它的为准——服务端首次 tick 会自检并打一行日志（`生命护盾属性已挂到玩家默认属性：true/false`），失败时护盾安全退化、不会崩。
 - 每 tick 的护盾维护（回复累积、被消耗的记账、上限裁剪、脱下胸甲后归零）由 `LivingEntityMixin#tick`（服务端）驱动，且"没有护盾值、胸甲无附魔、身上也没有吸收值"时直接返回，性能不降；数值口径（半颗心量化、原版吸收 + 我方护盾）与之前完全一致。
-- 状态效果 `enchantment_reforged:life_shield` 与其图标注册已删除：效果栏不会再出现"生命护盾"图标，**黄心照旧**（来自原版同步的伤害吸收值）。原有图标贴图改名复用为灵魂加护的冷却图标。
+- 状态效果 `summy_enchantment:life_shield` 与其图标注册已删除：效果栏不会再出现"生命护盾"图标，**黄心照旧**（来自原版同步的伤害吸收值）。原有图标贴图改名复用为灵魂加护的冷却图标。
 
 ### 灵魂加护：免死表现 + 冷却 buff
 
 - 免死触发时：原版图腾音效（音量/音高 1.0）+ 服务端图腾粒子爆发 `TOTEM_OF_UNDYING` ×60（扩散 0.6/0.9/0.6、速度 0.35），满血、清全部负面、2 秒抗性等级 4 的行为不变；音效与粒子固定，不提供开关。
-- 冷却做成新效果 `enchantment_reforged:soul_grace`（增益类别、金色、隐藏粒子、显示图标，语言键「灵魂加护 冷却中」），剩余时长即冷却剩余。
+- 冷却做成新效果 `summy_enchantment:soul_grace`（增益类别、金色、隐藏粒子、显示图标，语言键「灵魂加护 冷却中」），剩余时长即冷却剩余。
 - **冷却的权威来源仍是服务端计时表**：效果只作显示，每 20 tick 由服务端对齐一次（缺失或时长差 >1 秒就按剩余时长重挂，到期则清掉计时表项）。因此喝牛奶、`/effect clear`、死亡清效果都**不能**绕过冷却，图标最多 1 秒后自动回来。玩家断线时冷却登记会被清理。
 
 ### 灵动步伐：每玩家各自的闪避音效滑块
@@ -576,7 +576,7 @@ gradlew build
 - **复仇数值修复**：`1 + 基础 + 每级递增 × (等级 − 1)` → 1/2/3 级 = **+5% / +15% / +25%**（修掉此前的 15/25/35%）；附魔描述与配置说明共用同一处计算，配置文案改为「1 级加成」「每级递增」。
 - 7 条新附魔描述压缩为一句：斩杀 `目标生命低于 %s 时直接斩杀`、速食 `进食时长 -%s`、大胃袋 `饥饿值上限 +%s`、死者之心 `最大生命 +%s，受到的治疗 -%s`、复仇 `受击后 3 秒内近战伤害 +%s`、灵魂加护 `死亡时满血复活，冷却 %s 秒`、**灵动步伐 `闪避率 +%s`**。
 - 配置页合并为 **9 组**（共 79 项，标签两行 5+4）：核心机制 7 / 原版改动 5 / 武器附魔 12 / 弓弩与箭矢 12 / 生存与治疗 12（生命护盾、生命提升、死者之心、灵魂加护、恶咒、灵动步伐）/ 战斗状态 7 / 防御与耐久 7（坚甲、不死者加护、生命修补）/ 食物与采集 7（速食、大胃袋、自动熔炼、经验学者）/ 粒子与特效 10；语言键中英各 259 → **270**。
-- 产物：`enchantment-reforged-1.3.1.jar`（1.3.0 及更早保留）。
+- 产物：`summy-enchantment-1.3.1.jar`（1.3.0 及更早保留）。
 
 ## 1.3.2 生命护盾不再抹掉其它模组的吸收
 
@@ -584,15 +584,15 @@ gradlew build
 - **根因**：`combat/EnchantmentEffects#tickLifeShield` 在「护盾值归零 / 胸甲没有生命护盾附魔」这条分支里，会把吸收值直接**重写成"原版吸收效果的那一份"**（`setAbsorptionAmount(vanillaAbsorption(entity))`）。本模组自己不占吸收值时，这一句等于每 tick 把别人的吸收抹掉。
 - **修复**：该分支改为只回退**我方上次写入、且超出原版吸收的那一份**（`excess = max(0, 我方记账值 − 原版吸收)`），只有 `excess > 0` 时才回写，且回写值是「原版吸收 + 池子里剩下不属于我方的那部分」；**没有我方贡献时完全不碰吸收值**。
 - **顺带修掉**：原版"伤害吸收"效果（金苹果黄心）之前被每 tick 顶满的副作用也一并消失。
-- 本版**只改动了 `combat/EnchantmentEffects` 这一个类**；配置项（79）、语言键（各 270）、附魔（26）均未变化。产物：`enchantment-reforged-1.3.2.jar`（1.3.1 及更早保留）。
+- 本版**只改动了 `combat/EnchantmentEffects` 这一个类**；配置项（79）、语言键（各 270）、附魔（26）均未变化。产物：`summy-enchantment-1.3.2.jar`（1.3.1 及更早保留）。
 
 ## 1.3.3 生命护盾改为增量式（只加不抢）
 
 - **做法**：把原来的 `adjustShield`（按"原版吸收 + 我方护盾"**重写总量**）换成 `addShieldToPool`（**纯加法**：只把我方本次的增量加到吸收池上），回血累积护盾时不再重算别人的份额。
 - **每 tick 的维护只剩两件事**：① 上限 / 配置 / 附魔等级变化导致我方护盾缩小时，**只从池子里扣掉缩减的那一份**；② 记账——池子比我方上次记录少了多少，就当我方护盾被消耗了多少（也就是"先扣生命护盾"），池子被第三方抬高时只跟随记录、**不夺权重写总量**。
 - **结果**：总黄血 = 原版吸收 + 生命护盾 + 其它模组吸收，稳定相加、互不顶掉；例如别的模组给 40、生命护盾给 6 时池子是 46，挨 10 点伤害后是 36，其中生命护盾那一份仍然是 6。
-- **语义不变的部分**：护盾值仍存在属性 `enchantment_reforged:life_shield`（随玩家 NBT 持久化）、数值量化到半颗心、上限向下取半颗心、卸下胸甲只收回我方剩余份额。
-- 本版同样**只改动了 `combat/EnchantmentEffects` 这一个类**；配置项（79）、语言键（各 270）、附魔（26）均未变化。产物：`enchantment-reforged-1.3.3.jar`（1.3.2 及更早保留）。
+- **语义不变的部分**：护盾值仍存在属性 `summy_enchantment:life_shield`（随玩家 NBT 持久化）、数值量化到半颗心、上限向下取半颗心、卸下胸甲只收回我方剩余份额。
+- 本版同样**只改动了 `combat/EnchantmentEffects` 这一个类**；配置项（79）、语言键（各 270）、附魔（26）均未变化。产物：`summy-enchantment-1.3.3.jar`（1.3.2 及更早保留）。
 
 ## 1.3.4 生命修补满血生效 + 粒子归属收敛（仅对玩家）
 
@@ -609,7 +609,7 @@ gradlew build
 - **规则统一**：`0（原版默认）`与"未携带档位"在表现上等价——都等于本模组不介入。客户端本地的 `arrow_particle` 值从此只用于"上报给服务端"与配置页显示，不再作为本地渲染兜底；玩家进服后偏好登记的极短窗口内，其箭与近战对他人显示为原版，登记后新产生的箭 / 命中即恢复正常。
 - **斩首口径（确认，未改代码）**：头颅掉落几率 = `每级 N% × 附魔等级`，只与等级和配置有关，**独立于抢夺**——全库没有任何 `Looting` 引用，头颅也不走原版掉落表（直接 `dropStack`）。
 
-- 配置项（79）、语言键（各 270）、附魔（26）与网络协议（8）均未变化。产物：`enchantment-reforged-1.3.4.jar`（1.3.3 及更早保留）。
+- 配置项（79）、语言键（各 270）、附魔（26）与网络协议（8）均未变化。产物：`summy-enchantment-1.3.4.jar`（1.3.3 及更早保留）。
 
 ### 1.3.4 覆盖发布：SR 兼容诊断日志 + 三处口径修正
 
@@ -617,7 +617,7 @@ Kilt 端实测"暗仪刺刀 × 附魔"的问题分两部分，这一版分别处
 
 - **已核实的事实**：三处注入点与 refmap 跟 Kilt 重映射后的 SR 字节码**逐字一致**
   （`ShadowDash#strike`/`#heavySlash` 内 `class_1309.method_5643`、`ThrownSpear#method_7454` 内 `class_1297.method_5643`）；
-  1.3.4 的服务器日志里 `[ER] Summy Reliquary 近战兼容已生效` 证明兼容路径**至少命中过一次**。
+  1.3.4 的服务器日志里 `[SE] Summy Reliquary 近战兼容已生效` 证明兼容路径**至少命中过一次**。
 - **原先无法判定**：三处注入共用一条"只打一次"的日志，且魔剑本身没有任何视觉反馈，所以"魔剑到底有没有生效"
   只能靠带数值的日志才能定死 → 本轮改成**逐次结算、带数值**的诊断日志（见上面的兼容小节）。
 - **修掉的三处口径**：① 目标已死时不再掷出其不意 / 不补魔剑与斩杀（嗜血照常）；② 出其不意粒子改为
@@ -629,7 +629,7 @@ Kilt 端实测"暗仪刺刀 × 附魔"的问题分两部分，这一版分别处
   同时把整份 refmap 过了一遍：除矛兼容里两处**有意保留**的对方模组成员名（`SpearUser#pierce` / `SpearItem#stab`），
   其余目标成员全部是 intermediary 名。
 - 计数：配置项 79 → **80**（新增 `debug_sr_compat`，核心机制 7 → 8）；语言键中英各 296 → **298**；
-  附魔（26）与网络协议（8）不变。产物：`enchantment-reforged-1.3.4.jar`（覆盖）。
+  附魔（26）与网络协议（8）不变。产物：`summy-enchantment-1.3.4.jar`（覆盖）。
 
 ## 1.3.5 箭矢粒子兼容其它模组的箭（类兜底 + 双向标签 + 档位补写）
 
@@ -639,8 +639,8 @@ Kilt 端实测"暗仪刺刀 × 附魔"的问题分两部分，这一版分别处
 尽管它们早已把射手档位写进了箭本体。
 
 **改动**：判定改为"包含标签 → 排除标签 → 原版两箭 → 代码内固定排除（三叉戟 / `summy-reliquary:thrown_spear`）
-→ 其余继承箭矢基类的投掷物按开关"六级；新增实体标签 `#enchantment_reforged:arrow_particles`（默认含
-`#minecraft:arrows` 与 SRA 落箭）与 `#enchantment_reforged:no_arrow_particles`（默认空）；新增服务端开关
+→ 其余继承箭矢基类的投掷物按开关"六级；新增实体标签 `#summy_enchantment:arrow_particles`（默认含
+`#minecraft:arrows` 与 SRA 落箭）与 `#summy_enchantment:no_arrow_particles`（默认空）；新增服务端开关
 `arrow_particle_other_projectiles`（默认开）；服务端增加一次**幂等档位补写**，覆盖"构造之后才 `setOwner`"的发射路径。
 详细口径与整合包扩展方式见上面的专节。
 
@@ -651,7 +651,7 @@ Kilt 端实测"暗仪刺刀 × 附魔"的问题分两部分，这一版分别处
 **验证**：两树 `gradlew build` 通过（Forge 侧 `verifyMixinTargets` 27 个文件全绿）；无头 `runServer` 两轮
 （不装 SR / 装 deobf SR + Curios）都到 `Done`，日志出现 `Mixing PersistentProjectileEntityMixin … into PersistentProjectileEntity`，
 零注入失败、零标签报错；`run/` 已清理。计数：配置项 80 → **81**（粒子与特效 10 → 11）、中英语言键各 298 → **300**、
-数据文件 +2（两个标签）。产物：`enchantment-reforged-1.3.5.jar`（1.3.4 保留）。
+数据文件 +2（两个标签）。产物：`summy-enchantment-1.3.5.jar`（1.3.4 保留）。
 
 ## 1.3.6 弓弩附魔互通（弓兼容「多重射击 / 穿透」）
 
@@ -682,7 +682,7 @@ Kilt 端实测"暗仪刺刀 × 附魔"的问题分两部分，这一版分别处
 **验证**：两树 `gradlew build` 通过（Forge 侧 `verifyMixinTargets` 27 个文件全绿）；无头 `runServer` 两轮
 （不装 SR / 装 deobf SR + Curios）都到 `Done`，日志出现 `Mixing BowItemMixin … into BowItem`、`Mixing CrossbowItemMixin …`、
 `Mixing EnchantmentMixin …`，零注入失败；`run/` 已清理。计数：配置项仍 **81**、中英语言键各仍 **300**（只改了两条文案）、
-无新数据文件。产物：`enchantment-reforged-1.3.6.jar`（1.3.5 保留）。
+无新数据文件。产物：`summy-enchantment-1.3.6.jar`（1.3.5 保留）。
 
 ## 1.3.7 死神祝福造成侧全类型 + 轻盈 / 破空之愿 / 死亡之眼（含限伤核验）
 
@@ -692,11 +692,11 @@ Kilt 端实测"暗仪刺刀 × 附魔"的问题分两部分，这一版分别处
 
 - 实现在**受伤侧**统一结算：`LivingEntity#hurt` 的 `@ModifyVariable(argsOnly = true)` 里在原有"受伤倍率"之后，
   再按**攻击者**乘一次造成倍率（`EnchantmentEffects.deathsBlessingOutgoingApplies` 三道闸门：自伤跳过、只算直接来源、
-  伤害类型不在 `#enchantment_reforged:no_deaths_blessing_outgoing` 里）。
+  伤害类型不在 `#summy_enchantment:no_deaths_blessing_outgoing` 里）。
 - **删除**五处旧乘法：近战与横扫（`PlayerEntityMixin` 两处）、生物近战（`MobEntityMixin`）、矛刺（`SpearCompat`，
   那里现在只乘力量）、SR 斩击 / 投掷（`SummyReliquaryCompat#meleeMultiplier`）。**不删会重复叠加**（近战会乘两次）。
-  **力量Plus 与复仇保持原地不动**（它们本来就只在近战类站点生效）；`[ER-SR]` 诊断日志相应只打印"力量 × 复仇"。
-- 新增标签 `#enchantment_reforged:no_deaths_blessing_outgoing`（默认 SR 11 个 + SRA 3 个定值真伤，全部 `required:false`），
+  **力量Plus 与复仇保持原地不动**（它们本来就只在近战类站点生效）；`[SE-SR]` 诊断日志相应只打印"力量 × 复仇"。
+- 新增标签 `#summy_enchantment:no_deaths_blessing_outgoing`（默认 SR 11 个 + SRA 3 个定值真伤，全部 `required:false`），
   用法见上文「伤害管线与限伤核验」。
 - **SR「强力斩击」整条链路不吃造成侧**：`EnchantmentEffects` 新增"造成侧抑制窗口"（`ThreadLocal` 深度计数，
   `pushOutgoingSuppressed` / `popOutgoingSuppressed`），SR 的 `heavySlash` 注入点把主命中与随后的 `settleHit`
@@ -745,7 +745,7 @@ Kilt 端实测"暗仪刺刀 × 附魔"的问题分两部分，这一版分别处
 - 配置 **81 → 90**（新增第 10 组「箭矢特性」并删掉三项落空概率、粒子与特效 11 → 12）；附魔 **26 → 29**；
   语言键中英各 **300 → 328**（一一对应）；新增数据文件 1 个（伤害类型标签）、新增 S2C 通道 1 条（轻盈）
   与一个 mixin（`ItemMixin`），既有协议版本号 8 → 9（其余三条通道语义不变）。
-- 产物：`enchantment-reforged-1.3.7.jar`（1.3.6 保留）。
+- 产物：`summy-enchantment-1.3.7.jar`（1.3.6 保留）。
 
 ## 1.3.8 三个新附魔：闪身步 / 藏剑 / 电刀
 
@@ -795,12 +795,12 @@ Kilt 端实测"暗仪刺刀 × 附魔"的问题分两部分，这一版分别处
   `EnchantmentTarget` 判定，光覆写 `isAcceptableItem` 挡不住斧头）。
 - 计数：配置 **90 → 99**（新增第 11 组「赋能」9 项）；附魔 **29 → 32**（创造书同步 32 本）；
   语言键中英各 **328 → 356**；协议仍 9、无新数据文件与伤害类型；新增一个 mixin 与一个队列类（`ElectricArc`）。
-- 产物：`enchantment-reforged-1.3.8.jar`（1.3.7 保留）。
+- 产物：`summy-enchantment-1.3.8.jar`（1.3.7 保留）。
 
 **⑤ 调试日志开关与藏剑可核验性**
 
 - 把原来的 `debug_sr_compat` 更名为通用的 **`debug_logs`（"调试日志"，默认关）**，统一管辖核验用日志行：
-  `[ER-SR]` 逐次结算、`[ER] 死亡之眼…清空`、`[ER-HUD]` 自检、粒子档位回显与配置页"单项重置"回显；
+  `[SE-SR]` 逐次结算、`[SE] 死亡之眼…清空`、`[SE-HUD]` 自检、粒子档位回显与配置页"单项重置"回显；
   启动横幅、兼容检查、生命护盾自检与所有 WARN / ERROR 不受影响。旧键名（及旧默认值"开"）被静默忽略。
-- `[ER-SR]` 行新增 **藏剑等级 · 当前蓄力 tick（等效加成）** 字段，形如
+- `[SE-SR]` 行新增 **藏剑等级 · 当前蓄力 tick（等效加成）** 字段，形如
   `（魔剑5 / 斩杀0 / 出其不意3 / 藏剑1·蓄200tick(4.0)）`——藏剑的等级与蓄力从此可直接读，不必再用比值反推。

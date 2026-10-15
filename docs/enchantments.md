@@ -1,8 +1,8 @@
-# Enchantment Reforged 全附魔总表
+# Summy Enchantment 全附魔总表
 
 > **适用版本**：1.3.8（Fabric 与 Forge 两树功能一致，只有映射名与少数客户端实现类不同，详见各节"实现位置"）。
-> **数值口径**：文中数值都是**默认值**，实际以配置页或 `config/enchantment-reforged.json` 为准；配置键后的括号里写默认值。
-> **命名空间**：本模组所有附魔 id 都是 `enchantment_reforged:<id>`；语言键为 `enchantment.enchantment_reforged.<id>`。
+> **数值口径**：文中数值都是**默认值**，实际以配置页或 `config/summy-enchantment.json` 为准；配置键后的括号里写默认值。
+> **命名空间**：本模组所有附魔 id 都是 `summy_enchantment:<id>`；语言键为 `enchantment.summy_enchantment.<id>`。
 > 相关专题（铁砧、力量Plus、伤害管线与限伤、粒子与提示、兼容性）见文末「机制附录」。
 
 ## 速览表（32 个）
@@ -69,7 +69,7 @@
 - **获取方式**：附魔台 / 铁砧 / 随机战利品 / 创造书 / 命令。
 - **互斥**：无。
 - **相关配置键**：`enable_beheading`（开）、`beheading_head_chance_per_level`（0.10）（均服务端作用域）。
-- **边界与实现位置**：**几率独立于抢夺**（全库没有 `Looting` 引用，头颅也不走原版掉落表，而是直接丢出）；含变种映射，击杀玩家掉落带皮肤的头颅，末影龙无效。实现：`EnchantmentReforgedEvents`（AFTER_DEATH）→ `EnchantmentEffects.onDeathForBeheading`。
+- **边界与实现位置**：**几率独立于抢夺**（全库没有 `Looting` 引用，头颅也不走原版掉落表，而是直接丢出）；含变种映射，击杀玩家掉落带皮肤的头颅，末影龙无效。实现：`SummyEnchantmentEvents`（AFTER_DEATH）→ `EnchantmentEffects.onDeathForBeheading`。
 
 ### 斩杀（`execution`）
 
@@ -78,7 +78,7 @@
 - **获取方式**：铁砧 / 随机战利品（宝藏不进附魔台）/ 创造书 / 命令。
 - **互斥**：无。
 - **相关配置键**：`enable_execution`（开）、`execution_threshold`（0.15）（均服务端作用域）。
-- **边界与实现位置**：补刀使用**自定义伤害类型** `enchantment_reforged:execution`（注册在 `data/enchantment_reforged/damage_type/execution.json`，同时记录攻击者），因此有专属死亡信息；取不到该伤害类型时退回原版 `playerAttack`。SR「强力斩击」吃斩杀。实现：`EnchantmentEffects.tryExecuteReport` + 各近战入口。
+- **边界与实现位置**：补刀使用**自定义伤害类型** `summy_enchantment:execution`（注册在 `data/summy_enchantment/damage_type/execution.json`，同时记录攻击者），因此有专属死亡信息；取不到该伤害类型时退回原版 `playerAttack`。SR「强力斩击」吃斩杀。实现：`EnchantmentEffects.tryExecuteReport` + 各近战入口。
 
 ### 嗜血（`lifesteal`）
 
@@ -96,7 +96,7 @@
 - **获取方式**：附魔台 / 铁砧 / 随机战利品 / 创造书 / 命令。
 - **互斥**：无。
 - **相关配置键**：`enable_quick_strike`（开）、`quick_strike_bonus_per_level`（0.10）（均服务端作用域）。
-- **边界与实现位置**：以属性修饰符 `enchantment_reforged:quick_strike` 实现，每 tick 仅在数值变化时写入。实现：`LivingEntityMixin#tick` → `EnchantmentEffects.updateEquipmentAttributes`。
+- **边界与实现位置**：以属性修饰符 `summy_enchantment:quick_strike` 实现，每 tick 仅在数值变化时写入。实现：`LivingEntityMixin#tick` → `EnchantmentEffects.updateEquipmentAttributes`。
 
 ### 出其不意（`surprise`）
 
@@ -132,7 +132,7 @@
 - **获取方式**：铁砧 / 随机战利品 / 创造书 / 命令。
 - **互斥**：无。
 - **相关配置键**：`enable_instinctive_release`（开，服务端）。
-- **边界与实现位置**：服务端每 tick 检查"是否拉满"，客户端有对应部分保证动画同步。实现：`EnchantmentReforgedEvents.tickInstinctiveRelease`（服务端）+ `EnchantmentReforgedClient`（客户端）。
+- **边界与实现位置**：服务端每 tick 检查"是否拉满"，客户端有对应部分保证动画同步。实现：`SummyEnchantmentEvents.tickInstinctiveRelease`（服务端）+ `SummyEnchantmentClient`（客户端）。
 
 ### 幻影箭（`phantom_arrow`）
 
@@ -159,7 +159,7 @@
 - **获取方式**：附魔台 / 铁砧 / 随机战利品 / 创造书 / 命令。
 - **互斥**：无。
 - **相关配置键**：`enable_life_shield`（开）、`life_shield_percent_per_level`（0.20）（均服务端作用域）。
-- **边界与实现位置**：护盾值存在**自定义玩家属性** `enchantment_reforged:life_shield`（与附魔 id 同名但属于不同注册表），**不再占用效果栏、没有图标**，黄心由原版吸收显示，与其它来源的吸收**相加**（不抢其它模组的护盾）；满血时不累积；死亡重生不残留。实现：`LivingEntityMixin`（heal / tick）+ `EnchantmentEffects.lifeShield*`。
+- **边界与实现位置**：护盾值存在**自定义玩家属性** `summy_enchantment:life_shield`（与附魔 id 同名但属于不同注册表），**不再占用效果栏、没有图标**，黄心由原版吸收显示，与其它来源的吸收**相加**（不抢其它模组的护盾）；满血时不累积；死亡重生不残留。实现：`LivingEntityMixin`（heal / tick）+ `EnchantmentEffects.lifeShield*`。
 
 ### 生命提升（`health_boost`）
 
@@ -168,7 +168,7 @@
 - **获取方式**：附魔台 / 铁砧 / 随机战利品 / 创造书 / 命令。
 - **互斥**：无。
 - **相关配置键**：`enable_health_boost`（开）、`health_boost_per_level`（1.0）（均服务端作用域）。
-- **边界与实现位置**：以属性修饰符 `enchantment_reforged:health_boost`（加法）实现，与死者之心的乘法修饰符叠加；每 tick 仅在数值变化时写入。实现：`LivingEntityMixin#tick` → `EnchantmentEffects.updateEquipmentAttributes`。
+- **边界与实现位置**：以属性修饰符 `summy_enchantment:health_boost`（加法）实现，与死者之心的乘法修饰符叠加；每 tick 仅在数值变化时写入。实现：`LivingEntityMixin#tick` → `EnchantmentEffects.updateEquipmentAttributes`。
 
 ### 死者之心（`dead_mans_heart`）
 
@@ -186,7 +186,7 @@
 - **获取方式**：铁砧 / 随机战利品 / 创造书 / 命令。
 - **互斥**：无。
 - **相关配置键**：`enable_soul_grace`（开）、`soul_grace_cooldown_seconds`（180）（均服务端作用域）。
-- **边界与实现位置**：免死瞬间固定播放**原版图腾音效 + 图腾粒子爆发**（不加开关）；冷却以**服务端计时**为权威，效果栏里的"灵魂加护 冷却中"图标（状态效果 id 与附魔同名 `enchantment_reforged:soul_grace`）只作显示，喝牛奶或 `/effect clear` 最多 1 秒后自动回来且**冷却不被重置**；与恶咒同时穿戴时复活后血量为 1。实现：`EnchantmentReforgedEvents`（ALLOW_DEATH）+ `EnchantmentEffects.trySoulGrace` / `syncSoulGraceCooldown` + `ModStatusEffects`。
+- **边界与实现位置**：免死瞬间固定播放**原版图腾音效 + 图腾粒子爆发**（不加开关）；冷却以**服务端计时**为权威，效果栏里的"灵魂加护 冷却中"图标（状态效果 id 与附魔同名 `summy_enchantment:soul_grace`）只作显示，喝牛奶或 `/effect clear` 最多 1 秒后自动回来且**冷却不被重置**；与恶咒同时穿戴时复活后血量为 1。实现：`SummyEnchantmentEvents`（ALLOW_DEATH）+ `EnchantmentEffects.trySoulGrace` / `syncSoulGraceCooldown` + `ModStatusEffects`。
 
 ### 恶咒（`calamity`）
 
@@ -204,7 +204,7 @@
 - **获取方式**：铁砧 / 随机战利品 / 创造书 / 命令。
 - **互斥**：无。
 - **相关配置键**：`enable_nimble_steps`（开）、`nimble_steps_chance_per_level`（0.05）（服务端）；音效档位 `nimble_steps_sound`（默认 3 = 幻术师镜影，**客户端作用域**，0 = 关闭）。
-- **边界与实现位置**：标签 `#enchantment_reforged:no_dodge` 里的伤害类型**无法被闪避**（例如 SRA 的凋亡元素伤害）；闪避成功时在**受击者位置**按**该玩家自己上报的档位**播音效（0 只静音，不影响闪避本身）。实现：`LivingEntityMixin#damage` → `EnchantmentEffects.rollNimbleSteps` + `ConfigSync`（音效档位随客户端偏好上报）。
+- **边界与实现位置**：标签 `#summy_enchantment:no_dodge` 里的伤害类型**无法被闪避**（例如 SRA 的凋亡元素伤害）；闪避成功时在**受击者位置**按**该玩家自己上报的档位**播音效（0 只静音，不影响闪避本身）。实现：`LivingEntityMixin#damage` → `EnchantmentEffects.rollNimbleSteps` + `ConfigSync`（音效档位随客户端偏好上报）。
 
 ### 死神祝福（`deaths_blessing`）
 
@@ -213,7 +213,7 @@
 - **获取方式**：附魔台 / 铁砧 / 随机战利品 / 创造书 / 命令。
 - **互斥**：无。
 - **相关配置键**：`enable_deaths_blessing`（开）、`deaths_blessing_damage_taken_bonus`（0.20）、`deaths_blessing_damage_bonus_per_percent`（0.01）、`deaths_blessing_resist_per_percent`（0.005）（均服务端作用域）。
-- **边界与实现位置**：**受伤侧对全类型生效**（没有伤害类型过滤）；**造成侧只算直接来源**（攻击者本人或他射出的投射物；TNT、火焰、爆炸等间接伤害不吃，自伤也不吃造成侧），并且**跳过**定值真伤——标签 `#enchantment_reforged:no_deaths_blessing_outgoing` 默认含 SR 的 11 个与 SRA 的 3 个伤害类型；SR「强力斩击」整条链路（含它的魔剑/斩杀）同样不吃造成侧。实现：`LivingEntityMixin`（`hurt` 的 `@ModifyVariable(argsOnly = true)`）+ `EnchantmentEffects.deathsBlessingIncoming/Outgoing`。
+- **边界与实现位置**：**受伤侧对全类型生效**（没有伤害类型过滤）；**造成侧只算直接来源**（攻击者本人或他射出的投射物；TNT、火焰、爆炸等间接伤害不吃，自伤也不吃造成侧），并且**跳过**定值真伤——标签 `#summy_enchantment:no_deaths_blessing_outgoing` 默认含 SR 的 11 个与 SRA 的 3 个伤害类型；SR「强力斩击」整条链路（含它的魔剑/斩杀）同样不吃造成侧。实现：`LivingEntityMixin`（`hurt` 的 `@ModifyVariable(argsOnly = true)`）+ `EnchantmentEffects.deathsBlessingIncoming/Outgoing`。
 
 ### 复仇（`revenge`）
 
@@ -303,7 +303,7 @@
 - **获取方式**：铁砧 / 随机战利品 / 创造书 / 命令。
 - **互斥**：无。
 - **相关配置键**：`enable_death_eye`（开）、`death_eye_damage_per_stack`（0.25）、`death_eye_max_stacks`（8）（服务端）；提示粒子 `arrow_trait_hint_particles`（开，服务端，与破空之愿共用）。
-- **边界与实现位置**：层数按**射手**累计、跨武器共享，**死亡 / 重生 / 断线即清空**；穿透一箭多目标时每个目标各结算一次（后面目标吃更高层）。**清空规则（硬规则）**：只有这支箭**整段飞行未命中任何生物**且已插地/被移除时才清空（固定 100%）；**穿透命中过生物后落地不清空**；命中非生物实体（船、矿车等）算落空；清空时打一条按玩家 5 秒节流的日志。**层数达到上限时**在射手肩边每 tick 播 2 个附魔命中粒子（`ENCHANTED_HIT` 十字闪），与破空之愿的符文一眼可分，层数清零即停。实现：`PersistentProjectileEntityMixin`（命中/落空结算）+ `ArrowTraits` + `EnchantmentReforgedEvents`（提示粒子）。
+- **边界与实现位置**：层数按**射手**累计、跨武器共享，**死亡 / 重生 / 断线即清空**；穿透一箭多目标时每个目标各结算一次（后面目标吃更高层）。**清空规则（硬规则）**：只有这支箭**整段飞行未命中任何生物**且已插地/被移除时才清空（固定 100%）；**穿透命中过生物后落地不清空**；命中非生物实体（船、矿车等）算落空；清空时打一条按玩家 5 秒节流的日志。**层数达到上限时**在射手肩边每 tick 播 2 个附魔命中粒子（`ENCHANTED_HIT` 十字闪），与破空之愿的符文一眼可分，层数清零即停。实现：`PersistentProjectileEntityMixin`（命中/落空结算）+ `ArrowTraits` + `SummyEnchantmentEvents`（提示粒子）。
 
 ### 闪身步（`phase_step`）
 
@@ -312,7 +312,7 @@
 - **获取方式**：铁砧 / 随机战利品 / 创造书 / 命令。
 - **互斥**：无。
 - **相关配置键**：`enable_phase_step`（开，服务端）。
-- **边界与实现位置**：判定完全照搬末影人本体——只看伤害源是否在**原版标签** `#minecraft:is_projectile` 里（箭、雪球、鸡蛋、投掷三叉戟、火球等都算，整合包可用数据包改这个标签）；**喷溅药水的直击伤害不在该标签内，因此不免疫**；免疫时**不做传送**；不受 `#enchantment_reforged:no_dodge` 影响；与灵动步伐共存时**先判闪身步**，命中时不消耗灵动步伐的随机数。表现：命中瞬间在受击者身上播 8 个末影粒子（`PORTAL`），无音效。实现：`LivingEntityMixin` 的 `damage`/`hurt` HEAD 注入 + `EnchantmentEffects.isPhaseStepImmune`。
+- **边界与实现位置**：判定完全照搬末影人本体——只看伤害源是否在**原版标签** `#minecraft:is_projectile` 里（箭、雪球、鸡蛋、投掷三叉戟、火球等都算，整合包可用数据包改这个标签）；**喷溅药水的直击伤害不在该标签内，因此不免疫**；免疫时**不做传送**；不受 `#summy_enchantment:no_dodge` 影响；与灵动步伐共存时**先判闪身步**，命中时不消耗灵动步伐的随机数。表现：命中瞬间在受击者身上播 8 个末影粒子（`PORTAL`），无音效。实现：`LivingEntityMixin` 的 `damage`/`hurt` HEAD 注入 + `EnchantmentEffects.isPhaseStepImmune`。
 
 ### 藏剑（`hidden_blade`）
 
@@ -321,7 +321,7 @@
 - **获取方式**：铁砧 / 随机战利品 / 创造书 / 命令；附魔台也会给剑产出（斧头不会，见下）。
 - **互斥**：无。
 - **相关配置键**：`enable_hidden_blade`（开）、`hidden_blade_bonus_per_tick`（0.02）、`hidden_blade_max_bonus`（4.0）、`hidden_blade_cooldown_seconds`（2）（均服务端作用域）；满额提示沿用共用开关 `arrow_trait_hint_particles`。
-- **边界与实现位置**：**只有主手持着带该附魔的剑时才累积**（离开主手暂停累积但**保留**已攒值）；**任何近战挥砍都清空并进入 2 秒冷却**（含打空、砍空气），冷却期间停止累积；只作用于**主命中**（横扫不加成），SR 斩击与投掷不参与；死亡 / 重生 / 断线清空。满额时在持有人身上每 tick 播 2 个**附魔符文**（`ENCHANT`）提示，挥出后消失。实现：`PlayerEntityMixin`（主命中乘子 + `attack` TAIL 清空）+ `EnchantmentReforgedEvents`（每 tick 累积与提示）。
+- **边界与实现位置**：**只有主手持着带该附魔的剑时才累积**（离开主手暂停累积但**保留**已攒值）；**任何近战挥砍都清空并进入 2 秒冷却**（含打空、砍空气），冷却期间停止累积；只作用于**主命中**（横扫不加成），SR 斩击与投掷不参与；死亡 / 重生 / 断线清空。满额时在持有人身上每 tick 播 2 个**附魔符文**（`ENCHANT`）提示，挥出后消失。实现：`PlayerEntityMixin`（主命中乘子 + `attack` TAIL 清空）+ `SummyEnchantmentEvents`（每 tick 累积与提示）。
 - **补强：充能破甲 + 无视闪避（1.3.8 增补）**：只要这一刀**带藏剑加成**（充能 > 0），它就
   **无视目标的"灵动步伐"闪避**（必定命中，不掷随机数、不播闪避音效），并按**充能进度穿透护甲**：
   `破甲比例 = min(1, 已蓄 tick ÷ 封顶 tick)`（默认封顶 200 tick），因此蓄满即 **100% 削掉护甲减免**、
@@ -337,7 +337,7 @@
 - **获取方式**：附魔台 / 铁砧 / 随机战利品 / 创造书 / 命令。
 - **互斥**：无。
 - **相关配置键**：`enable_electric_blade`（开）、`electric_blade_radius`（5.0）、`electric_blade_damage_ratio`（0.8）、`electric_blade_delay_ticks`（2）（均服务端作用域）。
-- **边界与实现位置**：**只对玩家的左键近战主命中生效**（生物带该附魔不弹射；SR 斩击与投掷不触发）；**段数严格等于等级**（内部每段递减，1~4 级就是 1~4 段，不会续下去）；选目标是"以**上一段命中点**为圆心、半径 5 格内**最近且本次链未命中过**的活体"（排除攻击者本人），找不到就结束；**同一刀已经伤害过的目标都会被排除**——启动时会把"主命中 + 横扫受害者"一起写进排除集合，所以一次挥砍不会对同一目标打两遍；**基数取攻击侧金额**（含力量/复仇/藏剑加成，**不含**护甲减免、目标受伤倍率与魔剑追加），每段照常吃目标侧倍率与一层造成侧；**每段先清目标无敌帧**再打出，伤害源用原版 `playerAttack`；**每段各结算一次魔剑与嗜血**（定稿），但**不**触发斩杀、不出其不意、也不会再触发电刀；段间延迟 0.1 秒（默认 2 tick）由服务端队列推进，攻击者离线即终止；表现是**从上一段目标到本段目标**沿线电火花（`ELECTRIC_SPARK`）+ 命中点小爆发，服务端广播。实现：`PlayerEntityMixin`（在 `attack` HEAD/中段收集"本次挥砍伤害过的实体"与主命中金额，TAIL 启动，保证横扫也算进去）+ `combat/ElectricArc`（队列）+ `EnchantmentReforgedEvents`（每 tick 推进）。
+- **边界与实现位置**：**只对玩家的左键近战主命中生效**（生物带该附魔不弹射；SR 斩击与投掷不触发）；**段数严格等于等级**（内部每段递减，1~4 级就是 1~4 段，不会续下去）；选目标是"以**上一段命中点**为圆心、半径 5 格内**最近且本次链未命中过**的活体"（排除攻击者本人），找不到就结束；**同一刀已经伤害过的目标都会被排除**——启动时会把"主命中 + 横扫受害者"一起写进排除集合，所以一次挥砍不会对同一目标打两遍；**基数取攻击侧金额**（含力量/复仇/藏剑加成，**不含**护甲减免、目标受伤倍率与魔剑追加），每段照常吃目标侧倍率与一层造成侧；**每段先清目标无敌帧**再打出，伤害源用原版 `playerAttack`；**每段各结算一次魔剑与嗜血**（定稿），但**不**触发斩杀、不出其不意、也不会再触发电刀；段间延迟 0.1 秒（默认 2 tick）由服务端队列推进，攻击者离线即终止；表现是**从上一段目标到本段目标**沿线电火花（`ELECTRIC_SPARK`）+ 命中点小爆发，服务端广播。实现：`PlayerEntityMixin`（在 `attack` HEAD/中段收集"本次挥砍伤害过的实体"与主命中金额，TAIL 启动，保证横扫也算进去）+ `combat/ElectricArc`（队列）+ `SummyEnchantmentEvents`（每 tick 推进）。
 - **叠加口径提醒**：4 级电刀 + 魔剑 5 级时，四段合计的魔剑追加 ≈ 主命中金额 × (0.8+0.64+0.512+0.41) × 0.08 × 5 ≈ **主命中金额的 94%**（嗜血同理按 ×0.19×等级 回血）；这是"每段各结算一次"的既定口径。
 
 ## 机制附录
@@ -373,8 +373,8 @@
 - 三条核验结论：① **死神祝福·受伤侧本来就是全类型**（`hurt` 的 `argsOnly` 修改，无伤害类型过滤）；② **造成侧此前只覆盖近战类**，1.3.7 起统一到受伤侧按攻击者结算（只算**直接来源**，跳过自伤与标签排除的定值真伤）；③ ER 的"同 tick 多段"是"清无敌帧 + 再 `hurt` 一次"，**打不过**灾变 / 诡厄巫法 / Mowzie's 那类**实体级或事件层限伤**（`bypasses_armor` / `bypasses_enchantments` 标签只作用于原版减伤链）。
 - **箭矢完整公式**：`基础伤害（含原版力量加值）→ × 死亡之眼 (4+n)/4 → × 箭速倍率（疾矢）→ 命中时 × 死神祝福·造成侧 → 目标侧：死神祝福·受伤侧 → 护盾/原版吸收 → 第三方拦截或限伤`。
 - **伤害类型标签**（整合包可直接在自己的数据包里增删，`/reload` 生效）：
-  - `#enchantment_reforged:no_dodge`：这些伤害**无法被灵动步伐闪避**（默认含 SRA 的凋亡元素）。
-  - `#enchantment_reforged:no_deaths_blessing_outgoing`：这些伤害**不吃死神祝福·造成侧**（默认含 SR 的 11 个与 SRA 的 3 个定值真伤）。
+  - `#summy_enchantment:no_dodge`：这些伤害**无法被灵动步伐闪避**（默认含 SRA 的凋亡元素）。
+  - `#summy_enchantment:no_deaths_blessing_outgoing`：这些伤害**不吃死神祝福·造成侧**（默认含 SR 的 11 个与 SRA 的 3 个定值真伤）。
 - **额外伤害只吃一层**：魔剑、出其不意这类"基于本次攻击金额"的追加伤害，其基数取自**攻击侧金额**（不含造成侧），因此受伤侧只会为它们补一层，不存在平方叠加。
 
 ### 粒子与提示（粒子与特效组）
@@ -393,14 +393,14 @@
 
 本模组把**核验用**日志行统一收在一个开关下（默认关闭，避免非调试期刷屏）；打开后输出：
 
-- `[ER-SR] …` 近战逐次结算（仅在装了 Summy Reliquary 的环境产生）：原始金额、乘区（力量 × 复仇）、
+- `[SE-SR] …` 近战逐次结算（仅在装了 Summy Reliquary 的环境产生）：原始金额、乘区（力量 × 复仇）、
   手持武器上的**魔剑 / 斩杀 / 出其不意 / 藏剑等级 · 当前蓄力 tick（等效加成）**、魔剑与嗜血的落地值、
   斩杀与出其不意的判定结果、目标血量、粒子档位；每 tick 最多 8 行、同内容去重；
-- `[ER] 死亡之眼（玩家）：整箭落空 → 清空（原 N 层）`（按玩家 5 秒节流）；
-- `[ER-HUD] foodLevel=…`（Forge 端大胃袋 HUD 自检，数值变化时打一次）；
+- `[SE] 死亡之眼（玩家）：整箭落空 → 清空（原 N 层）`（按玩家 5 秒节流）；
+- `[SE-HUD] foodLevel=…`（Forge 端大胃袋 HUD 自检，数值变化时打一次）；
 - 粒子档位上报回显（每名玩家进服/改档位时一次）与配置页"单项重置"回显。
 
-**不受它影响、始终输出**的：启动横幅、`[ER] 矛/SR 兼容检查`、生命护盾属性自检、SR 近战兼容首次生效提示、
+**不受它影响、始终输出**的：启动横幅、`[SE] 矛/SR 兼容检查`、生命护盾属性自检、SR 近战兼容首次生效提示、
 旧客户端偏好降级提示，以及全部 WARN / ERROR。旧的 `debug_sr_compat` 键在 1.3.8 更名为 `debug_logs`（默认值也从开改为关），
 旧配置文件里的残留键会被静默忽略。
 - **Backported Spears（矛）**：修复其玩家分支"基础伤害算两遍"导致的伤害翻倍；左键刺击额外吃力量Plus。未安装矛模组时兼容代码不介入。
@@ -422,5 +422,5 @@
 
 - 附魔 **32** 个；配置 **99** 项，按功能域分成 **11 组**：核心机制 8 / 原版改动 5 / 武器附魔 12 / 弓弩与箭矢 12 / 生存与治疗 12 / 战斗状态 7 / 防御与耐久 7 / 食物与采集 7 / 粒子与特效 12 / 箭矢特性 8 / 赋能 9。
 - 网络协议版本 **9**；中英语言键各 **356** 条且一一对应。
-- 两树（Fabric `1.3.8` / Forge `1.3.8-forge`）**功能一致**，只是 Yarn / Mojang 映射名不同，Mixin 类名两树相同（Fabric 30 个、Forge 29 个）。客户端实现差异只有两处：**大胃袋 HUD**（Fabric `InGameHudMixin` 注入原版 HUD；Forge 改用 GUI overlay `ExtraHungerOverlay`）与**配置页入口**（Fabric 走 Mod Menu 的 `EnchantmentReforgedModMenu`，Forge 走模组列表里的"配置"按钮，即 `ConfigScreenHandler.ConfigScreenFactory`）。
+- 两树（Fabric `1.3.8` / Forge `1.3.8-forge`）**功能一致**，只是 Yarn / Mojang 映射名不同，Mixin 类名两树相同（Fabric 30 个、Forge 29 个）。客户端实现差异只有两处：**大胃袋 HUD**（Fabric `InGameHudMixin` 注入原版 HUD；Forge 改用 GUI overlay `ExtraHungerOverlay`）与**配置页入口**（Fabric 走 Mod Menu 的 `SummyEnchantmentModMenu`，Forge 走模组列表里的"配置"按钮，即 `ConfigScreenHandler.ConfigScreenFactory`）。
 - 本文档以 **1.3.8 的代码**为准；改动数值后请按"注册代码 / 配置枚举 / 客户端 `EnchantmentDescriptions` / 两树 README 专题"逐字段回来核对。

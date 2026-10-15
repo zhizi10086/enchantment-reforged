@@ -1,4 +1,4 @@
-# Enchantment Reforged
+# Summy Enchantment
 
 Minecraft **1.20.1** 的附魔与机制改造模组：重做锋利与力量、铁砧改为消耗经验点数，
 新增 32 个附魔（含锋利Plus）、11 组配置页（99 项）与可自定义的粒子特效；可选兼容矛
@@ -21,7 +21,7 @@ Forge 用 Mojang 官方映射，无法共享同一份源码。
 ```bash
 cd fabric
 ./gradlew build
-# 产物：build/libs/enchantment-reforged-1.3.8.jar
+# 产物：build/libs/summy-enchantment-1.3.8.jar
 ```
 
 ### Forge
@@ -29,7 +29,7 @@ cd fabric
 ```bash
 cd forge
 ./gradlew build
-# 产物会复制到仓库根目录的 JAR/enchantment-reforged-forge/enchantment-reforged-1.3.8-forge.jar
+# 产物会复制到仓库根目录的 JAR/summy-enchantment-forge/summy-enchantment-1.3.8-forge.jar
 ```
 
 Forge 工程自带两个构建期保障（`gradlew build` 自动执行）：

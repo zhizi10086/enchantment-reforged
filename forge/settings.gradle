@@ -8,4 +8,4 @@ pluginManagement {
     }
 }
 
-rootProject.name = 'enchantment-reforged-forge'
+rootProject.name = 'summy-enchantment-forge'

@@ -72,10 +72,10 @@ jar {
     }
 }
 
-// 构建结束后把 remap 后的 jar 复制到固定的发布目录（项目外的 ../JAR/enchantment-reforged）
+// 构建结束后把 remap 后的 jar 复制到固定的发布目录（项目外的 ../JAR/summy-enchantment）
 tasks.named('build') {
     doLast {
-        def releaseDir = file('../JAR/enchantment-reforged')
+        def releaseDir = file('../JAR/summy-enchantment')
         releaseDir.mkdirs()
         copy {
             from tasks.named('remapJar').get().archiveFile
