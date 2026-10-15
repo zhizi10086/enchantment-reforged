@@ -1632,6 +1632,16 @@ public final class EnchantmentEffects {
 		return Math.min(bonus, config.hiddenBladeMaxBonus);
 	}
 
+	/** 藏剑当前已累积的 tick 数（诊断日志用；没装或没累积时返回 0） */
+	public static int hiddenBladeChargedTicks(LivingEntity entity) {
+		EnchantmentReforgedConfig config = EnchantmentReforgedConfig.get();
+		if (!config.enableHiddenBlade || ModEnchantments.HIDDEN_BLADE == null || entity == null) {
+			return 0;
+		}
+		long[] state = HIDDEN_BLADE_STATE.get(entity.getUuid());
+		return state == null || state[0] <= 0L ? 0 : (int) state[0];
+	}
+
 	/**
 	 * 藏剑：服务端每 tick 推进——主手持着带该附魔的剑时累积（离开主手暂停但保留），
 	 * 冷却期间停止累积；冷却结束后从 0 重新开始。

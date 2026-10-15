@@ -1,6 +1,7 @@
 package com.enchantmentreforged.client;
 
 import com.enchantmentreforged.EnchantmentReforged;
+import com.enchantmentreforged.config.EnchantmentReforgedConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.resources.ResourceLocation;
@@ -93,10 +94,13 @@ public final class ExtraHungerOverlay implements IGuiOverlay {
 		if (foodLevel != lastLoggedFoodLevel || saturationKey != lastLoggedSaturationKey) {
 			lastLoggedFoodLevel = foodLevel;
 			lastLoggedSaturationKey = saturationKey;
-			EnchantmentReforged.LOGGER.info(
-					"[ER-HUD] foodLevel={}, saturation={}, extraFood={}, rowY={}, screen={}x{}, classicBar={}",
-					foodLevel, saturation, extraFood, rowY, screenWidth, screenHeight,
-					enchantmentReforged$classicBarLoaded());
+			// 核验用自检日志：只在"调试日志"开关打开时输出
+			if (EnchantmentReforgedConfig.get().debugLogs) {
+				EnchantmentReforged.LOGGER.info(
+						"[ER-HUD] foodLevel={}, saturation={}, extraFood={}, rowY={}, screen={}x{}, classicBar={}",
+						foodLevel, saturation, extraFood, rowY, screenWidth, screenHeight,
+						enchantmentReforged$classicBarLoaded());
+			}
 		}
 		if (extraFood <= 0) {
 			return;

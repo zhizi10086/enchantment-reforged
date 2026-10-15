@@ -379,8 +379,10 @@ public class EnchantmentReforgedConfigScreen extends Screen {
 					button -> {
 						EnchantmentReforgedConfig.resetOption(this.option);
 						publishIfNeeded(this.option);
-						EnchantmentReforged.LOGGER.info("[Enchantment Reforged] 单项重置：{} -> {}",
-								this.option.key(), this.option.get(EnchantmentReforgedConfig.get()));
+						if (EnchantmentReforgedConfig.get().debugLogs) {
+							EnchantmentReforged.LOGGER.info("[Enchantment Reforged] 单项重置：{} -> {}",
+									this.option.key(), this.option.get(EnchantmentReforgedConfig.get()));
+						}
 						this.forceSync = true;
 						this.syncState();
 					}).bounds(resetX, y, RESET_WIDTH, controlHeight).build();

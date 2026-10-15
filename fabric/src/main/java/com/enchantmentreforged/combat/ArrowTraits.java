@@ -247,6 +247,10 @@ public final class ArrowTraits {
 			return;
 		}
 		CLEAR_LOG_STAMP.put(owner, tick);
+		// 核验用日志：只在"调试日志"开关打开时输出（默认关闭，避免非调试期刷屏）
+		if (!EnchantmentReforgedConfig.get().debugLogs) {
+			return;
+		}
 		String name = owner.toString();
 		if (arrow.getWorld().getServer() != null) {
 			ServerPlayerEntity player = arrow.getWorld().getServer().getPlayerManager().getPlayer(owner);

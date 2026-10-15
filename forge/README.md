@@ -58,6 +58,14 @@ Minecraft **1.20.1** 的附魔与机制改造模组：重做锋利与力量、�
   `Mixing EnchantmentHelperMixin ... into EnchantmentHelper`、`Mixing SummyReliquaryShadowDashMixin ... into ShadowDash`、`Mixing SpearItemCompatMixin ... into SpearItem`，零注入失败。
 - 产物：`enchantment-reforged-1.3.8-forge.jar`（1.3.7 保留）。
 
+**调试日志开关与藏剑可核验性（1.3.8 增补）**
+
+- 把原来的 `debug_sr_compat` 更名为通用的 **`debug_logs`（"调试日志"，默认关）**，统一管辖核验用日志行：
+  `[ER-SR]` 逐次结算、`[ER] 死亡之眼…清空`、`[ER-HUD]` 自检、粒子档位回显与配置页"单项重置"回显；
+  启动横幅、兼容检查、生命护盾自检与所有 WARN / ERROR 不受影响。旧键名被静默忽略。
+- `[ER-SR]` 行新增 **藏剑等级 · 当前蓄力 tick（等效加成）** 字段，形如
+  `（魔剑5 / 斩杀0 / 出其不意3 / 藏剑1·蓄200tick(4.0)）`。
+
 ### 1.3.7-forge 新增发布（死神祝福造成侧全类型 + 轻盈 / 破空之愿 / 死亡之眼）
 
 与 Fabric 端 1.3.7 同步（两侧逐行等价，仅映射名不同）：
@@ -324,9 +332,10 @@ SR 有两处自造的近战伤害（暗仪刺刀「遁入暗影」的两段斩�
 - **目标已死时不再掷出其不意**（同上）：这一击已经把目标打死时，不再补魔剑 / 斩杀 / 出其不意，也不再发它们的
   粒子（嗜血仍按本次伤害结算，击杀照常回血），消除"只有粒子、没有伤害"的假象；出其不意的粒子也改成
   "二次伤害确实落地后才播"；
-- **诊断日志**：`debug_sr_compat`（默认开）打开时，每次近战结算都会打一行
-  `[ER-SR] strike|heavySlash|thrownSpear|melee | …`，含原始金额、乘区三分量、魔剑/嗜血/斩杀/出其不意的实际
-  结果、`hurt` 返回值、目标血量与四项粒子档位（每 tick 最多 8 行、同内容去重）；
+- **诊断日志**：把"调试日志"（`debug_logs`，默认**关**）打开后，每次近战结算都会打一行
+  `[ER-SR] strike|heavySlash|thrownSpear|melee | …`，含原始金额、乘区（力量 × 复仇）、手持武器上的
+  魔剑/斩杀/出其不意**与藏剑等级·当前蓄力 tick（等效加成）**、魔剑/嗜血/斩杀/出其不意的实际结果、
+  `hurt` 返回值、目标血量与四项粒子档位（每 tick 最多 8 行、同内容去重）；
 - `libs/summy-reliquary-1.8.5-forge.jar` 仅作编译期依赖：`@Mixin(targets = ...)` 要求目标类出现在
   编译类路径上，否则注解处理器会直接报 `Mixin target ... could not be found`。
 

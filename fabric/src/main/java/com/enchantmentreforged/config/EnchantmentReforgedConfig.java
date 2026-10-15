@@ -260,14 +260,21 @@ public final class EnchantmentReforgedConfig {
 	/** 闪避生效时的音效档位（0 = 关闭，默认 3 = 幻术师镜影；每名玩家各自的客户端设置） */
 	public int nimbleStepsSound = 3;
 
-	// ---------------- Summy Reliquary 兼容诊断 ----------------
+	// ---------------- 调试日志（核验用日志行总开关） ----------------
 	/**
-	 * 打开后，近战命中结算会在日志里输出一行 `[ER-SR]`：原始金额、乘区三分量、魔剑 / 嗜血 / 斩杀 /
-	 * 出其不意的实际结果、目标血量与粒子档位，用来在实机上一眼判断"某个附魔到底有没有生效"。
+	 * 打开后会输出"核验用"日志行（默认关闭，避免非调试期刷屏）：
 	 *
-	 * <p>只在真的装了 Summy Reliquary 的环境产生日志；排查结束后建议关掉。
+	 * <ul>
+	 *     <li>`[ER-SR]` 近战结算明细：原始金额、乘区分量（含藏剑的等级与蓄力）、魔剑 / 嗜血 / 斩杀 /
+	 *     出其不意的实际结果、目标血量与粒子档位（只在装了 Summy Reliquary 的环境产生）；</li>
+	 *     <li>`[ER] 死亡之眼…清空…`（按玩家 5 秒节流）；</li>
+	 *     <li>`[ER-HUD] …` 大胃袋 HUD 自检（数值变化时打一次）；</li>
+	 *     <li>粒子档位上报回显、配置页单项重置回显。</li>
+	 * </ul>
+	 *
+	 * <p>启动横幅、兼容检查、生命护盾自检与所有 WARN / ERROR 不受它影响，始终输出。
 	 */
-	public boolean debugSrCompat = true;
+	public boolean debugLogs = false;
 
 	// ---------------- 隐藏项（仅文件可改） ----------------
 	public int sharpnessMaxLevel = 5;
@@ -479,8 +486,8 @@ public final class EnchantmentReforgedConfig {
 		ENABLE_STRENGTH_REWORK(Category.CORE, "enable_strength_rework", Kind.BOOLEAN, 0.0D, 1.0D, 1.0D, 1.0D),
 		STRENGTH_MULTIPLIER_PER_LEVEL(Category.CORE, "strength_multiplier_per_level", Kind.DOUBLE, 0.0D, 10.0D, 0.05D, 0.5D),
 		APPLY_STRENGTH_TO_MOBS(Category.CORE, "apply_strength_to_mobs", Kind.BOOLEAN, 0.0D, 1.0D, 1.0D, 1.0D),
-		// 诊断用：把 SR 兼容（含左键近战）的逐次结算数值写进日志
-		DEBUG_SR_COMPAT(Category.CORE, "debug_sr_compat", Kind.BOOLEAN, 0.0D, 1.0D, 1.0D, 1.0D),
+		// 调试日志：核验用日志行总开关（SR 逐次结算 / 死亡之眼清空 / HUD 自检等），默认关
+		DEBUG_LOGS(Category.CORE, "debug_logs", Kind.BOOLEAN, 0.0D, 1.0D, 1.0D, 0.0D),
 
 		// ================= 原版附魔 =================
 		ENABLE_PROTECTION_LEVEL_5(Category.VANILLA_ENCHANTMENTS, "enable_protection_level_5", Kind.BOOLEAN, 0.0D, 1.0D, 1.0D, 1.0D),
@@ -712,7 +719,7 @@ public final class EnchantmentReforgedConfig {
 				case ENABLE_STRENGTH_REWORK -> config.enableStrengthRework ? 1.0D : 0.0D;
 				case STRENGTH_MULTIPLIER_PER_LEVEL -> config.strengthMultiplierPerLevel;
 				case APPLY_STRENGTH_TO_MOBS -> config.applyStrengthToMobs ? 1.0D : 0.0D;
-				case DEBUG_SR_COMPAT -> config.debugSrCompat ? 1.0D : 0.0D;
+				case DEBUG_LOGS -> config.debugLogs ? 1.0D : 0.0D;
 				case ENABLE_PROTECTION_LEVEL_5 -> config.enableProtectionLevel5 ? 1.0D : 0.0D;
 				case ENABLE_IMPALING_BEDROCK_RULE -> config.enableImpalingBedrockRule ? 1.0D : 0.0D;
 				case ENABLE_INFINITY_MENDING -> config.enableInfinityMending ? 1.0D : 0.0D;
@@ -822,7 +829,7 @@ public final class EnchantmentReforgedConfig {
 				case ENABLE_STRENGTH_REWORK -> config.enableStrengthRework = clamped >= 0.5D;
 				case STRENGTH_MULTIPLIER_PER_LEVEL -> config.strengthMultiplierPerLevel = (float) clamped;
 				case APPLY_STRENGTH_TO_MOBS -> config.applyStrengthToMobs = clamped >= 0.5D;
-				case DEBUG_SR_COMPAT -> config.debugSrCompat = clamped >= 0.5D;
+				case DEBUG_LOGS -> config.debugLogs = clamped >= 0.5D;
 				case ENABLE_PROTECTION_LEVEL_5 -> config.enableProtectionLevel5 = clamped >= 0.5D;
 				case ENABLE_IMPALING_BEDROCK_RULE -> config.enableImpalingBedrockRule = clamped >= 0.5D;
 				case ENABLE_INFINITY_MENDING -> config.enableInfinityMending = clamped >= 0.5D;

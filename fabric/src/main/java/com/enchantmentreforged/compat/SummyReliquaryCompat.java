@@ -142,7 +142,7 @@ public final class SummyReliquaryCompat {
 				allowExecute, allowSurprise, targetGone, surprise, surpriseLanded);
 	}
 
-	// ==================== 诊断日志（debug_sr_compat） ====================
+	// ==================== 诊断日志（debug_logs） ====================
 
 	/** 每 tick 的输出上限：一次斩击打一堆目标时不至于刷屏 */
 	private static final int DEBUG_LINES_PER_TICK = 8;
@@ -154,13 +154,13 @@ public final class SummyReliquaryCompat {
 	 * `[ER-SR]` 逐次结算日志：把这一击的原始金额、乘区（力量 / 复仇）、魔剑 / 嗜血 / 斩杀 / 出其不意的实际结果、
 	 * 目标血量与粒子档位写进一行，用来在实机上一眼判断"某个附魔到底有没有生效"。
 	 *
-	 * <p>只在 {@code debug_sr_compat} 打开、且本环境真的装了 SR 时输出；每 tick 最多 8 行、同内容去重。
+	 * <p>只在 {@code debug_logs} 打开、且本环境真的装了 SR 时输出；每 tick 最多 8 行、同内容去重。
 	 */
 	private static void logSettlement(String entry, PlayerEntity attacker, ItemStack weapon, Entity target,
 			float rawAmount, float amount, boolean landed, float magic, float healed, boolean executed,
 			boolean allowExecute, boolean allowSurprise, boolean targetGone,
 			EnchantmentEffects.SurpriseRoll surprise, boolean surpriseLanded) {
-		if (!EnchantmentReforgedConfig.get().debugSrCompat || !isActive()) {
+		if (!EnchantmentReforgedConfig.get().debugLogs || !isActive()) {
 			return;
 		}
 		// 只在逻辑服务端输出：客户端预测也会跑同一段注入（hurt 必然 false、金额也不等于服务端），
@@ -195,13 +195,19 @@ public final class SummyReliquaryCompat {
 		int spellblade = levelOf(weapon, ModEnchantments.SPELLBLADE);
 		int execution = levelOf(weapon, ModEnchantments.EXECUTION);
 		int surpriseLevel = levelOf(weapon, ModEnchantments.SURPRISE);
+		// 藏剑：等级 + 当前蓄力（tick 与等效百分比）——这两个值不参与乘区打印，但能一眼看出它有没有在工作
+		int hiddenBlade = levelOf(weapon, ModEnchantments.HIDDEN_BLADE);
+		int hiddenBladeTicks = hiddenBlade > 0 ? EnchantmentEffects.hiddenBladeChargedTicks(attacker) : 0;
+		float hiddenBladeBonus = hiddenBlade > 0 ? EnchantmentEffects.hiddenBladeBonus(attacker) : 0.0F;
 		StringBuilder sb = new StringBuilder(240);
 		sb.append("[ER-SR] ").append(entry)
 				.append(" | ").append(attacker.getGameProfile().getName())
 				.append(" 手持 ").append(Registries.ITEM.getId(weapon.getItem()))
 				.append("（魔剑").append(spellblade)
 				.append(" / 斩杀").append(execution)
-				.append(" / 出其不意").append(surpriseLevel).append("）")
+				.append(" / 出其不意").append(surpriseLevel)
+				.append(" / 藏剑").append(hiddenBlade)
+				.append("·蓄").append(hiddenBladeTicks).append("tick(").append(fmt(hiddenBladeBonus)).append(")").append("）")
 				.append(" | ").append(fmt(rawAmount))
 				.append(" × 力量").append(fmt(CombatFormulas.strengthMultiplier(attacker)))
 				.append(" × 复仇").append(fmt(EnchantmentEffects.revengeMultiplier(attacker)))

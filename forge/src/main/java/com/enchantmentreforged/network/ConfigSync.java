@@ -120,6 +120,10 @@ public final class ConfigSync {
 					msg.surpriseStyle(), msg.deathStyle(), msg.dodgeSound());
 			REQUEST_STATE.remove(player.getUUID());
 			if (preference != null) {
+				// 核验用回显：只在"调试日志"开关打开时输出
+				if (!EnchantmentReforgedConfig.get().debugLogs) {
+					return;
+				}
 				EnchantmentReforged.LOGGER.info(
 						"[Enchantment Reforged] 玩家 {} 的粒子档位 = 箭矢 {} / 近战 {} / 横扫 {} / 强度 {}"
 								+ " / 出其不意 {} / 死亡 {} / 闪避音效 {}（远距离={}，半径={}）",
