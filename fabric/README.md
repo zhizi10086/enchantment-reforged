@@ -802,6 +802,8 @@ Kilt 端实测"暗仪刺刀 × 附魔"的问题分两部分，这一版分别处
 - `PersistentProjectileEntity#setOwner` 会按主人的游戏模式重写 `pickupType`。原来的顺序是先设
   `DISALLOWED`、再 `setOwner`，于是多重射击 / 幻影箭的额外箭又被改回 `ALLOWED`，可以被回收。
   现在把 `DISALLOWED` 移到 `setOwner` 之后，额外箭一律不可拾取；主箭仍按无限口径为 `CREATIVE_ONLY`。
+- 落地拖尾：`ArrowParticleCarrier` 新增 `isInGround` 查询，客户端本地渲染与服务端远距离代发在插地后
+  都直接跳过，不再原地持续生成拖尾粒子。
 
 **⑤ 调试日志开关与藏剑可核验性**
 

@@ -57,6 +57,10 @@ public final class ArrowParticleRenderer {
 		if (particle == null || !isArrow(arrow)) {
 			return;
 		}
+		// 插在方块上的箭不再生成拖尾：只靠速度判断时，插地箭可能还残留微小速度
+		if (arrow instanceof ArrowParticleCarrier carrier && carrier.summyEnchantment$isInGround()) {
+			return;
+		}
 		Vec3 velocity = arrow.getDeltaMovement();
 		// 落地/插在方块上的箭速度会被清零，用它区分"还在飞"
 		if (velocity.lengthSqr() < 1.0E-4D) {

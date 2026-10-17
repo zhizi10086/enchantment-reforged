@@ -101,6 +101,11 @@ public abstract class PersistentProjectileEntityMixin implements ArrowParticleCa
 		((Entity) (Object) this).getEntityData().set(ID_FLAGS, (byte) flags);
 	}
 
+	@Override
+	public boolean summyEnchantment$isInGround() {
+		return this.inGround;
+	}
+
 	/** 原版同步字节的原始值（无符号） */
 	@Unique
 	private int summyEnchantment$rawFlags() {

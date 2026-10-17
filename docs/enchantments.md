@@ -384,6 +384,7 @@
 - 客户端作用域：`arrow_particle`（0）、`arrow_particle_long_distance`（关）、`arrow_particle_distance`（128）、`melee_particle`（0）、`melee_sweep_particle`（0）、`melee_particle_effect`（1，档位 0~2）、`surprise_particle`（2）、`death_particle`（12）、`nimble_steps_sound`（3，0 = 关闭）。
 - 服务端作用域：`arrow_particle_other_projectiles`（开，是否把其它模组的箭也算作"箭"）、`enable_death_particle`（开）、`arrow_trait_hint_particles`（开，破空之愿满蓄力与死亡之眼满层的提示粒子，两处共用）。
 - 口径：**0 = 原版默认（不介入）**；箭矢与近战/横扫/出其不意的档位由攻击者随客户端偏好上报，服务端再广播给附近玩家；**只有玩家发起的行为才有自定义粒子**（生物、发射器、指令生成的箭保持原版）。
+- **落地停止**：箭矢拖尾只对飞行中的箭生成；`ArrowParticleCarrier#summyEnchantment$isInGround()` 在客户端本地渲染与服务端远距离代发两处都直接短路，箭插地/落地后不再原地持续冒粒子。
 
 ### 兼容性
 

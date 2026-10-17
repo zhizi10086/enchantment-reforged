@@ -13,4 +13,7 @@ public interface ArrowParticleCarrier {
 
 	/** 写入射手档位（只在服务端生成箭时调用） */
 	void summyEnchantment$setParticleStyle(int style);
+
+	/** 是否已经插在方块里（落地后不再生成拖尾粒子） */
+	boolean summyEnchantment$isInGround();
 }

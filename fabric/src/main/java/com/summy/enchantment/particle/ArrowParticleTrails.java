@@ -100,6 +100,10 @@ public final class ArrowParticleTrails {
 		if (arrow.getWorld().isClient || !isArrow(arrow)) {
 			return;
 		}
+		// 插在方块上的箭不再发拖尾（速度判断对插地箭不够可靠）
+		if (arrow instanceof ArrowParticleCarrier carrier && carrier.summyEnchantment$isInGround()) {
+			return;
+		}
 		// 快速路径：没有人开启"远距离显示"时整段跳过（不分配、不遍历玩家）
 		if (ParticlePreferences.longDistanceUsers() == 0) {
 			return;
