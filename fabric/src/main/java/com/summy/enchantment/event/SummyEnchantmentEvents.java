@@ -42,7 +42,12 @@ public final class SummyEnchantmentEvents {
 
 		// 重生时清掉生命护盾残留（原版会把吸收值带到新角色身上）
 		ServerPlayerEvents.AFTER_RESPAWN.register((newPlayer, oldPlayer, alive) -> {
-			EnchantmentEffects.clearLifeShield(newPlayer);
+			if (alive) {
+				// 非死亡换维度等路径：属性随玩家保留，但吸收池可能只剩残余值，重新对账。
+				EnchantmentEffects.restoreLifeShieldToPool(newPlayer);
+			} else {
+				EnchantmentEffects.clearLifeShield(newPlayer);
+			}
 			// 死亡之眼：重生同样清零（死亡事件已清一次，这里做兜底）
 			ArrowTraits.clearPlayer(newPlayer.getUuid());
 			// 藏剑同理

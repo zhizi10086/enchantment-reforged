@@ -979,6 +979,12 @@ public final class EnchantmentEffects {
 			SHIELD_TRACK.remove(entity);
 			return;
 		}
+		// 登录 / 非死亡重生后的第一次维护：属性里的护盾可能在存档里存在，
+		// 但吸收池在重登时只保留了当时的残余值。先按属性对账一次，避免“属性 53.5、吸收 3.5”的脱节。
+		if (!SHIELD_TRACK.containsKey(entity)) {
+			restoreLifeShieldToPool(entity);
+			return;
+		}
 
 		// 按当前配置与等级裁剪护盾（调低数值、换下胸甲、关开关都会立刻生效）
 		float cap = (config.enableLifeShield && level > 0) ? lifeShieldCap(entity, level) : 0.0F;
@@ -1007,6 +1013,39 @@ public final class EnchantmentEffects {
 			SHIELD_TRACK.put(entity, observed);
 		} else if (observed > tracked) {
 			// 池子被第三方抬高（例如饰品模组的魂心补满）：跟随记录，不夺权、不重算总量
+			SHIELD_TRACK.put(entity, observed);
+		}
+	}
+
+	/**
+	 * 把生命护盾属性里的盾值重新写回原版吸收池。
+	 *
+	 * <p>只补“吸收池少于护盾”的差额，不会重写总量；池子已经高于护盾时只更新记账。
+	 * 用于登录 / 非死亡重生后的对账，避免属性与吸收池长期脱节。
+	 */
+	public static void restoreLifeShieldToPool(LivingEntity entity) {
+		if (entity == null || entity.getWorld().isClient) {
+			return;
+		}
+		SummyEnchantmentConfig config = SummyEnchantmentConfig.get();
+		int level = ModEnchantments.LIFE_SHIELD == null ? 0 : chestLevel(entity, ModEnchantments.LIFE_SHIELD);
+		float shield = lifeShield(entity);
+		if (!config.enableLifeShield || level <= 0 || shield <= 0.0F) {
+			SHIELD_TRACK.remove(entity);
+			return;
+		}
+		// 不在这里按 maxHealth 重新夹上限：登录事件可能早于装备属性修饰符应用，
+		// 此时 maxHealth 还是基础值，夹上限会把合法护盾误砍。上限由下一次 tickLifeShield 处理。
+		float observed = entity.getAbsorptionAmount();
+		if (observed + 1.0E-3F < shield) {
+			float target = quantizeShield(shield);
+			entity.setAbsorptionAmount(target);
+			SHIELD_TRACK.put(entity, target);
+			if (config.debugLogs) {
+				SummyEnchantment.LOGGER.info("[SE] 生命护盾对账：吸收 {} → {}（护盾 {}，等级 {}）",
+						observed, target, shield, level);
+			}
+		} else {
 			SHIELD_TRACK.put(entity, observed);
 		}
 	}

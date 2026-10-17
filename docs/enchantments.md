@@ -87,7 +87,7 @@
 - **获取方式**：附魔台 / 铁砧 / 随机战利品 / 创造书 / 命令。
 - **互斥**：无。
 - **相关配置键**：`enable_lifesteal`（开）、`lifesteal_percent_per_level`（0.08）（均服务端作用域）。
-- **边界与实现位置**：击杀也回血（按本次伤害而非目标剩余生命结算）；SR 的斩击与投掷命中同样结算。实现：`EnchantmentEffects.applyLifestealReport`，入口与魔剑相同。
+- **边界与实现位置**：击杀也回血（按本次伤害而非目标剩余生命结算）；SR 的斩击与投掷命中同样结算。**生命修补优先**：如果身上有带生命修补的装备缺耐久，这次嗜血治疗会被整段用于修复耐久，不会继续累积生命护盾；恶咒把生命锁在 1 时，嗜血仍会触发，但生命值不会上涨。实现：`EnchantmentEffects.applyLifestealReport`，入口与魔剑相同。
 
 ### 迅捷打击（`quick_strike`）
 
@@ -159,7 +159,7 @@
 - **获取方式**：附魔台 / 铁砧 / 随机战利品 / 创造书 / 命令。
 - **互斥**：无。
 - **相关配置键**：`enable_life_shield`（开）、`life_shield_percent_per_level`（0.20）（均服务端作用域）。
-- **边界与实现位置**：护盾值存在**自定义玩家属性** `summy_enchantment:life_shield`（与附魔 id 同名但属于不同注册表），**不再占用效果栏、没有图标**，黄心由原版吸收显示，与其它来源的吸收**相加**（不抢其它模组的护盾）；满血时不累积；死亡重生不残留。实现：`LivingEntityMixin`（heal / tick）+ `EnchantmentEffects.lifeShield*`。
+- **边界与实现位置**：护盾值存在**自定义玩家属性** `summy_enchantment:life_shield`（与附魔 id 同名但属于不同注册表），**不再占用效果栏、没有图标**，黄心由原版吸收显示，与其它来源的吸收**相加**（不抢其它模组的护盾）；满血时不累积；死亡重生不残留。**登录 / 非死亡重生 / 首次 tick 会对账**：若属性护盾大于吸收池，把差额补回吸收池，避免“属性有盾、实际吸收没有”的脱节；生命修补仍在生命护盾之前结算。实现：`LivingEntityMixin`（heal / tick）+ `SummyEnchantmentEvents`（登录/重生对账）+ `EnchantmentEffects.lifeShield*`。
 
 ### 生命提升（`health_boost`）
 

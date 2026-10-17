@@ -1,6 +1,7 @@
 package com.summy.enchantment;
 
 import com.summy.enchantment.combat.CombatFormulas;
+import com.summy.enchantment.combat.EnchantmentEffects;
 import com.summy.enchantment.command.SummyEnchantmentCommand;
 import com.summy.enchantment.config.SummyEnchantmentConfig;
 import com.summy.enchantment.event.SummyEnchantmentEvents;
@@ -50,6 +51,8 @@ public class SummyEnchantment implements ModInitializer {
 		ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
 			ConfigSync.sendTo(handler.getPlayer());
 			ConfigSync.requestParticlePreference(handler.getPlayer());
+			// 重登后把存档里的生命护盾属性重新写回吸收池（属性与吸收值分开持久化，可能脱节）。
+			EnchantmentEffects.restoreLifeShieldToPool(handler.getPlayer());
 		});
 
 		// 客户端上报的"每名玩家自己的箭矢粒子档位"（不属于服务端配置，单独一条通道）

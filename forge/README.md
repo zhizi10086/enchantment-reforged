@@ -77,6 +77,8 @@ Minecraft **1.20.1** 的附魔与机制改造模组：重做锋利与力量、�
   `DISALLOWED` 移到 `setOwner` 之后，额外箭一律不可拾取。
 - **落地拖尾修复**：`ArrowParticleCarrier` 新增 `isInGround` 查询；客户端本地渲染与服务端远距离代发
   在箭插地后都直接跳过，不再原地持续生成拖尾粒子。
+- **生命护盾对账**：登录、非死亡重生与首次 tick 时，如果属性里的护盾大于吸收池，把差额补回吸收池；
+  避免“属性 53.5、实际吸收 3.5”的脱节。生命修补仍然优先，嗜血回血可被它整段用于修复耐久。
 - **构建**：`patchRefmap` 为这个 Forge 新增方法补同名 refmap 条目；`gradlew build` 与
   `verifyMixinTargets` 均通过。
 

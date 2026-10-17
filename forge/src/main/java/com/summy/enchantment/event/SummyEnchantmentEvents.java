@@ -68,6 +68,9 @@ public final class SummyEnchantmentEvents {
 			EnchantmentEffects.clearLifeShield(event.getEntity());
 			// 藏剑：重生同样清零（死亡事件已清一次，这里做兜底）
 			EnchantmentEffects.clearHiddenBlade(event.getEntity().getUUID());
+		} else {
+			// 非死亡换维度等路径：属性随玩家保留，但吸收池可能只剩残余值，重新对账。
+			EnchantmentEffects.restoreLifeShieldToPool(event.getEntity());
 		}
 	}
 
@@ -76,6 +79,8 @@ public final class SummyEnchantmentEvents {
 		if (event.getEntity() instanceof ServerPlayer player) {
 			ConfigSync.sendTo(player);
 			ConfigSync.requestParticlePreference(player);
+			// 重登后把存档里的生命护盾属性重新写回吸收池（属性与吸收值分开持久化，可能脱节）。
+			EnchantmentEffects.restoreLifeShieldToPool(player);
 		}
 	}
 

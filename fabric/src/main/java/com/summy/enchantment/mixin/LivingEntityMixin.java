@@ -1,7 +1,9 @@
 package com.summy.enchantment.mixin;
 
+import com.summy.enchantment.SummyEnchantment;
 import com.summy.enchantment.combat.CombatFormulas;
 import com.summy.enchantment.combat.EnchantmentEffects;
+import com.summy.enchantment.config.SummyEnchantmentConfig;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.llamalad7.mixinextras.sugar.Local;
@@ -187,10 +189,17 @@ public abstract class LivingEntityMixin {
 		// 生命护盾/恶咒联动用"实际回复量"；生命修补用"本次治疗量"——
 		// 满血时实际回复量是 0，此时按原始治疗量换算，满血也能修耐久。
 		float mendingFuel = healed > 0.0F ? healed : amount;
-		// 生命修补：修到耐久就吞掉这次治疗
-		if (mendingFuel > 0.0F && EnchantmentEffects.repairWithLifeMending(self, mendingFuel) > 0) {
-			ci.cancel();
-			return;
+		// 生命修补：修到耐久就吞掉这次治疗（优先级保持在生命护盾之前）
+		if (mendingFuel > 0.0F) {
+			int repaired = EnchantmentEffects.repairWithLifeMending(self, mendingFuel);
+			if (repaired > 0) {
+				if (SummyEnchantmentConfig.get().debugLogs) {
+					SummyEnchantment.LOGGER.info("[SE] 生命修补：治疗 {} 被用于修复 {} 点耐久（本次不累积生命护盾）",
+							healed > 0.0F ? healed : amount, repaired);
+				}
+				ci.cancel();
+				return;
+			}
 		}
 		if (healed <= 0.0F) {
 			// 满血且没修到任何耐久：与之前一样，不累积护盾、不触发恶咒压血
