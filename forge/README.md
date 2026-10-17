@@ -72,6 +72,9 @@ Minecraft **1.20.1** 的附魔与机制改造模组：重做锋利与力量、�
   空箭射击与弩侧口径不变。Fabric 端的 `isOf(Items.ARROW)` 包装本来就是正确的，无需改动。
 - **拾取**：主箭生成后显式设为 `CREATIVE_ONLY`（与无限同口径），生存玩家不能回收；多重射击 / 幻影箭的额外箭仍为
   `DISALLOWED`。开启 `debug_logs` 时会打一条 `[SE] 无尽箭袋：主箭 pickup=...`，便于核对。
+- **额外箭拾取修复**：`AbstractArrow#setOwner` 会按主人的游戏模式重写 `pickup`。原来的顺序是先设
+  `DISALLOWED`、再 `setOwner`，于是多重射击 / 幻影箭的额外箭又被改回 `ALLOWED`，可以被回收。现在把
+  `DISALLOWED` 移到 `setOwner` 之后，额外箭一律不可拾取。
 - **构建**：`patchRefmap` 为这个 Forge 新增方法补同名 refmap 条目；`gradlew build` 与
   `verifyMixinTargets` 均通过。
 

@@ -797,6 +797,12 @@ Kilt 端实测"暗仪刺刀 × 附魔"的问题分两部分，这一版分别处
   语言键中英各 **328 → 356**；协议仍 9、无新数据文件与伤害类型；新增一个 mixin 与一个队列类（`ElectricArc`）。
 - 产物：`summy-enchantment-1.3.8.jar`（1.3.7 保留）。
 
+**覆盖修复：无尽箭袋 + 多重射击的额外箭不可拾取**
+
+- `PersistentProjectileEntity#setOwner` 会按主人的游戏模式重写 `pickupType`。原来的顺序是先设
+  `DISALLOWED`、再 `setOwner`，于是多重射击 / 幻影箭的额外箭又被改回 `ALLOWED`，可以被回收。
+  现在把 `DISALLOWED` 移到 `setOwner` 之后，额外箭一律不可拾取；主箭仍按无限口径为 `CREATIVE_ONLY`。
+
 **⑤ 调试日志开关与藏剑可核验性**
 
 - 把原来的 `debug_sr_compat` 更名为通用的 **`debug_logs`（"调试日志"，默认关）**，统一管辖核验用日志行：

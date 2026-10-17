@@ -715,13 +715,15 @@ public final class EnchantmentEffects {
 		extra.readCustomDataFromNbt(nbt);
 		extra.refreshPositionAndAngles(original.getX(), original.getY(), original.getZ(), original.getYaw(), original.getPitch());
 		extra.setVelocity(original.getVelocity());
-		// 额外箭不可拾取，也不占用弹药
-		extra.pickupType = PersistentProjectileEntity.PickupPermission.DISALLOWED;
 		// 归属者（owner 不进 NBT）
 		Entity owner = original.getOwner();
 		if (owner != null) {
 			extra.setOwner(owner);
 		}
+		// 额外箭不可拾取，也不占用弹药。
+		// 必须在 setOwner 之后：PersistentProjectileEntity#setOwner 会按主人的游戏模式重写 pickupType
+		// （生存 = ALLOWED、创造 = CREATIVE_ONLY），先设会被它覆盖。
+		extra.pickupType = PersistentProjectileEntity.PickupPermission.DISALLOWED;
 		if (markExtraHit) {
 			markExtraHitArrow(extra);
 		}

@@ -718,13 +718,15 @@ public final class EnchantmentEffects {
 		extra.readAdditionalSaveData(nbt);
 		extra.moveTo(original.getX(), original.getY(), original.getZ(), original.getYRot(), original.getXRot());
 		extra.setDeltaMovement(original.getDeltaMovement());
-		// 额外箭不可拾取，也不占用弹药
-		extra.pickup = AbstractArrow.Pickup.DISALLOWED;
 		// 归属者（owner 不进 NBT）
 		Entity owner = original.getOwner();
 		if (owner != null) {
 			extra.setOwner(owner);
 		}
+		// 额外箭不可拾取，也不占用弹药。
+		// 必须在 setOwner 之后：AbstractArrow#setOwner 会按主人的游戏模式重写 pickup
+		// （生存 = ALLOWED、创造 = CREATIVE_ONLY），先设会被它覆盖。
+		extra.pickup = AbstractArrow.Pickup.DISALLOWED;
 		if (markExtraHit) {
 			markExtraHitArrow(extra);
 		}
