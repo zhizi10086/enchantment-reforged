@@ -12,8 +12,9 @@ import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.AbstractArrow;
-import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ArrowItem;
 import net.minecraft.world.item.BowItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -99,27 +100,29 @@ public abstract class BowItemMixin {
 	}
 
 	/**
-	 * 无尽箭袋 / 无限：决定这次射击是否免消耗弹药。
+	 * 无尽箭袋：决定这次射击是否免消耗弹药。
 	 *
-	 * <p>原版这里是 {@code bl2 = 有无限 && 弹药是普通箭}，只有普通箭才免消耗；
-	 * 无尽箭袋是它的上位替代——任何弹药都免消耗。
+	 * <p>Forge 1.20.1 的弓用 {@link ArrowItem#isInfinite(ItemStack, ItemStack, Player)}
+	 * 判断免消耗，而不是 {@code ItemStack#is(Items.ARROW)}。原版只认“无限 + 普通箭”，
+	 * 这里让本模组的无尽箭袋对所有 {@link ArrowItem} 弹药都返回免消耗。
 	 */
 	@WrapOperation(
 			method = "releaseUsing",
 			at = @At(
 					value = "INVOKE",
-					target = "Lnet/minecraft/world/item/ItemStack;is(Lnet/minecraft/world/item/Item;)Z"
+					target = "Lnet/minecraft/world/item/ArrowItem;isInfinite(Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/entity/player/Player;)Z",
+					remap = false
 			)
 	)
-	private boolean summyEnchantment$spareAmmo(ItemStack ammo, Item item, Operation<Boolean> original) {
-		if (original.call(ammo, item)) {
+	private boolean summyEnchantment$endlessQuiverSparesAmmo(ArrowItem item, ItemStack ammo, ItemStack bow,
+			Player player, Operation<Boolean> original) {
+		if (original.call(item, ammo, bow, player)) {
 			return true;
 		}
-		ItemStack bow = summyEnchantment$currentBow.get();
-		return bow != null && EnchantmentEffects.sparesAmmo(bow, ammo);
+		return EnchantmentEffects.sparesAmmo(bow, ammo);
 	}
 
-	/** 无尽箭袋：让原版"无限"的判定也认同它（无弹药兜底与免消耗都走这条） */
+	/** 无尽箭袋：让原版"无限"的判定也认同它（无弹药兜底仍走这条；免消耗由上面的 ArrowItem#isInfinite 包装处理） */
 	@WrapOperation(
 			method = "releaseUsing",
 			at = @At(

@@ -205,7 +205,11 @@ def extraRefmapEntries = [
         ],
         'com/summy/enchantment/mixin/BowItemMixin'                   : [
                 'Lnet/minecraft/world/level/Level;addFreshEntity(Lnet/minecraft/world/entity/Entity;)Z':
-                        'Lnet/minecraft/world/level/Level;m_7967_(Lnet/minecraft/world/entity/Entity;)Z'
+                        'Lnet/minecraft/world/level/Level;m_7967_(Lnet/minecraft/world/entity/Entity;)Z',
+                // Forge 新增方法（不在 Mojang/SRG 映射里，生产名不混淆）：@At 已标 remap = false，
+                // 这里补一条同名映射，只是为了通过 verifyMixinTargets 的 refmap 覆盖检查。
+                'Lnet/minecraft/world/item/ArrowItem;isInfinite(Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/entity/player/Player;)Z':
+                        'Lnet/minecraft/world/item/ArrowItem;isInfinite(Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/entity/player/Player;)Z'
         ],
         'com/summy/enchantment/mixin/CrossbowItemMixin'              : [
                 'Lnet/minecraft/world/level/Level;addFreshEntity(Lnet/minecraft/world/entity/Entity;)Z':

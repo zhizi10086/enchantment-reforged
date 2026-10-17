@@ -27,6 +27,8 @@ Minecraft **1.20.1** 的附魔与机制改造模组：重做锋利与力量、�
    `Read timed out` 导致构建失败。
 2. **`patchRefmap`**：`Level#addFreshEntity`、`Level#addParticle`、`Component#translatable` 是接口继承/接口静态成员，
    Mixin 注解处理器在 tsrg2 里定位不到，构建后手工补进 refmap（SRG 名取自 `build/createMcpToSrg/output.tsrg`）。
+   Forge 新增的 `ArrowItem#isInfinite` 也不在 Mojang/SRG 映射里：`BowItemMixin` 的 `@At` 标 `remap = false`，
+   并在 `extraRefmapEntries` 补一条同名条目，仅供 `verifyMixinTargets` 的 refmap 覆盖检查使用。
 3. **`patchSrgForDev`**：dev 运行时 Mixin 会用 `createSrgToMcp/output.srg` 反查 refmap，
    上面这些成员在该文件里没有条目；这里复制一份并在末尾补映射，只用于 `runServer` / `runClient`。
 4. **`verifyMixinTargets`**：构建期自检（挂在 `check` 上，`gradlew build` 自动跑）。它做两件事：
@@ -59,6 +61,17 @@ Minecraft **1.20.1** 的附魔与机制改造模组：重做锋利与力量、�
   无头 `runServer` 两轮（不装 SR / 装 deobf SR + Curios）都到 `Done`，日志出现
   `Mixing EnchantmentHelperMixin ... into EnchantmentHelper`、`Mixing SummyReliquaryShadowDashMixin ... into ShadowDash`、`Mixing SpearItemCompatMixin ... into SpearItem`，零注入失败。
 - 产物：`summy-enchantment-1.3.8-forge.jar`（1.3.7 保留）。
+
+**1.3.8-forge 覆盖修复：无尽箭袋不消耗箭矢**
+
+- **根因**：Forge 1.20.1 的 `BowItem#releaseUsing` 用 `ArrowItem#isInfinite(...)` 判断免消耗，而不是
+  `ItemStack#is(Items.ARROW)`。原来的 `@WrapOperation` 挂在 `ItemStack#is` 上，只命中创造模式拾取判定；
+  实际消耗分支没有被改写，所以只实现了"没箭也能射"，没有实现"有箭不消耗"。
+- **修复**：`BowItemMixin` 改为包装 `ArrowItem#isInfinite`（`@At(remap = false)`），命中后调用
+  `EnchantmentEffects.sparesAmmo`。普通箭、药水箭、光灵箭与继承 `ArrowItem` 的模组箭均免消耗；
+  空箭射击与弩侧口径不变。Fabric 端的 `isOf(Items.ARROW)` 包装本来就是正确的，无需改动。
+- **构建**：`patchRefmap` 为这个 Forge 新增方法补同名 refmap 条目；`gradlew build` 与
+  `verifyMixinTargets` 均通过。
 
 **调试日志开关与藏剑可核验性（1.3.8 增补）**
 
