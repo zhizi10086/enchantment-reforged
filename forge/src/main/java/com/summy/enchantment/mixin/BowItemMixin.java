@@ -1,5 +1,6 @@
 package com.summy.enchantment.mixin;
 
+import com.summy.enchantment.SummyEnchantment;
 import com.summy.enchantment.combat.EnchantmentEffects;
 import com.summy.enchantment.combat.ArrowTraits;
 import com.summy.enchantment.config.SummyEnchantmentConfig;
@@ -160,6 +161,15 @@ public abstract class BowItemMixin {
 		ItemStack bow = summyEnchantment$currentBow.get();
 		if (bow == null) {
 			return spawned;
+		}
+		// 无尽箭袋的主箭显式设为 CREATIVE_ONLY（与无限同口径）：
+		// 原版虽然在 flag1 为真时也会设，但这里再兜一次，避免其它模组在生成事件里改写拾取权限。
+		if (EnchantmentEffects.hasEndlessQuiver(bow)) {
+			arrow.pickup = AbstractArrow.Pickup.CREATIVE_ONLY;
+			if (SummyEnchantmentConfig.get().debugLogs) {
+				SummyEnchantment.LOGGER.info("[SE] 无尽箭袋：主箭 pickup={}，类型={}",
+						arrow.pickup, arrow.getType());
+			}
 		}
 		summyEnchantment$applyArrowTraits(bow, arrow);
 		summyEnchantment$applyBowCrossbowEnchantments(bow, arrow);

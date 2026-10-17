@@ -150,7 +150,7 @@
 - **获取方式**：铁砧 / 随机战利品 / 创造书 / 命令。
 - **互斥**：与原版**无限**双向互斥（它是无限的上位替代）。
 - **相关配置键**：`enable_endless_quiver`（开，服务端）。
-- **边界与实现位置**：弓侧包装 Forge 的 `ArrowItem#isInfinite`（Fabric/Yarn 为 `isOf(Items.ARROW)`），弩侧把原版 `split(1)` 换成"返回副本"；互斥判定在 `EnchantmentMixin`。实现：`BowItemMixin` / `CrossbowItemMixin` + `EnchantmentEffects.sparesAmmo`。
+- **边界与实现位置**：弓侧包装 Forge 的 `ArrowItem#isInfinite`（Fabric/Yarn 为 `isOf(Items.ARROW)`），弩侧把原版 `split(1)` 换成"返回副本"；主箭显式设为 `CREATIVE_ONLY`（生存不可回收），多重射击 / 幻影箭额外箭为 `DISALLOWED`；互斥判定在 `EnchantmentMixin`。实现：`BowItemMixin` / `CrossbowItemMixin` + `EnchantmentEffects.sparesAmmo`。
 
 ### 生命护盾（`life_shield`）
 
